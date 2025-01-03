@@ -1,4 +1,4 @@
-package org.poo.main;
+package org.poo.main.accounts;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -6,9 +6,15 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Getter;
 import lombok.Setter;
 import org.poo.fileio.CommandInput;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
+
+import org.poo.main.Card;
+import org.poo.main.ExchangeRatesGraph;
+import org.poo.main.CashbackService;
+import org.poo.main.User;
 import org.poo.utils.Errors;
 import org.poo.utils.Utils;
 
@@ -17,7 +23,8 @@ import org.poo.utils.Utils;
  * <p>
  * This class includes methods for managing the account information.
  */
-@Getter @Setter
+@Getter
+@Setter
 public class Account {
     private final String iban;
     private String alias = " ";
@@ -27,6 +34,7 @@ public class Account {
     private List<Card> cards;
     private TreeMap<Integer, ObjectNode> report;
     private TreeMap<Integer, ObjectNode> spendingsReport;
+    private CashbackService cashbackService;
     private User owner;
 
     /**
@@ -45,6 +53,7 @@ public class Account {
         report = new TreeMap<>();
         spendingsReport = new TreeMap<>();
         iban = Utils.generateIBAN();
+
     }
 
     /**
@@ -54,18 +63,7 @@ public class Account {
      * @return a JSON representation of the account
      */
     public ObjectNode getJson() {
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("IBAN", iban);
-        node.put("balance", balance);
-        node.put("currency", currency);
-        node.put("type", "classic");
-
-        ArrayNode array = JsonNodeFactory.instance.arrayNode();
-        for (Card card : cards) {
-            array.add(card.getJson());
-        }
-        node.set("cards", array);
-        return node;
+        return null;
     }
 
     /**
@@ -98,31 +96,36 @@ public class Account {
      * The payment amount is converted to the account's currency using the provided exchange rates.
      * If the card is frozen or there are insufficient funds, an error is returned.
      *
-     * @param card the card used for the payment
-     * @param amount the amount to be paid
-     * @param payCurrency the currency of the payment
+     * @param card          the card used for the payment
+     * @param amount        the amount to be paid
+     * @param payCurrency   the currency of the payment
      * @param exchangeRates the exchange rates used for payCurrency conversion
-     * @param timestamp the timestamp of the payment
-     * @param commerciant the merchant name for the payment
+     * @param timestamp     the timestamp of the payment
+     * @param commerciant   the merchant name for the payment
      * @return an {@link ObjectNode} containing the payment result, or an error if payment fails
      */
     public ObjectNode makePayment(final Card card, double amount, final String payCurrency,
-                                  final ExchangeRatesGraph exchangeRates,
-                                  final int timestamp, final String commerciant) {
+                                  final ExchangeRatesGraph exchangeRates, final int timestamp,
+                                  final String commerciant) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (card.getStatus().equals("frozen")) {
             return Errors.frozenCard(timestamp);
         }
         amount *= exchangeRates.getRate(payCurrency, card.getAccountBelonging().getCurrency());
+        double ronAmount = amount * exchangeRates.getRate(payCurrency, "RON");
+        amount *= getOwner().getCommission(ronAmount);
 
         if (balance < amount) {
             return Errors.insufficientFunds(timestamp);
         }
 
+        amount -= cashbackService.giveCashback(commerciant, amount);
+        //pt tranzactii, mereu e in RON
+        cashbackService.addTransactionToCommerciant(commerciant, ronAmount);
         balance -= amount;
         node.put("timestamp", timestamp);
         node.put("description", "Card payment");
-        node.put("amount", amount);
+        node.put("amount", amount / getOwner().getCommission(ronAmount));
         node.put("commerciant", commerciant);
 
         card.getAccountBelonging().addToReport(node);
@@ -135,14 +138,13 @@ public class Account {
      * Sends money from the account to another account, deducting the amount from the balance.
      * A transaction is recorded in the account's report.
      *
-     * @param toAccount the IBAN of the recipient account
-     * @param amount the amount to send
+     * @param toAccount   the IBAN of the recipient account
+     * @param amount      the amount to send
      * @param description a description for the transaction
-     * @param timestamp the timestamp of the transaction
+     * @param timestamp   the timestamp of the transaction
      */
-    public void sendMoney(final String toAccount, final double amount,
-                          final String description, final int timestamp) {
-        balance -= amount;
+    public void sendMoney(final String toAccount, final double amount, final double commission, final String description, final int timestamp) {
+        balance -= amount * commission;
         ObjectNode node = addTransaction(iban, toAccount, amount, description, timestamp);
         owner.getCommandHistory().addToHistory(node);
         addToReport(node);
@@ -153,12 +155,11 @@ public class Account {
      * A transaction is recorded in the account's report.
      *
      * @param fromAccount the IBAN of the sender account
-     * @param amount the amount to receive
+     * @param amount      the amount to receive
      * @param description a description for the transaction
-     * @param timestamp the timestamp of the transaction
+     * @param timestamp   the timestamp of the transaction
      */
-    public void receiveMoney(final String fromAccount, final double amount,
-                             final String description, final int timestamp) {
+    public void receiveMoney(final String fromAccount, final double amount, final String description, final int timestamp) {
         balance += amount;
         ObjectNode node = addTransaction(fromAccount, iban, amount, description, timestamp);
         owner.getCommandHistory().addToHistory(node);
@@ -169,15 +170,13 @@ public class Account {
      * Creates a transaction object for a transfer from one account to another.
      *
      * @param fromAccount the IBAN of the sender account
-     * @param toAccount the IBAN of the recipient account
-     * @param amount the transaction amount
+     * @param toAccount   the IBAN of the recipient account
+     * @param amount      the transaction amount
      * @param description a description for the transaction
-     * @param timestamp the timestamp of the transaction
+     * @param timestamp   the timestamp of the transaction
      * @return an {@link ObjectNode} representing the transaction
      */
-    public ObjectNode addTransaction(final String fromAccount, final String toAccount,
-                                     final double amount, final String description,
-                                     final int timestamp) {
+    public ObjectNode addTransaction(final String fromAccount, final String toAccount, final double amount, final String description, final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
         node.put("description", description);
@@ -196,14 +195,13 @@ public class Account {
     /**
      * Creates a split payment transaction across multiple accounts.
      *
-     * @param array a list of accounts involved in the split payment
+     * @param array       a list of accounts involved in the split payment
      * @param payCurrency the currency of the split payment
-     * @param amount the total amount of the payment
-     * @param timestamp the timestamp of the transaction
+     * @param amount      the total amount of the payment
+     * @param timestamp   the timestamp of the transaction
      * @return an {@link ObjectNode} representing the split transaction
      */
-    public ObjectNode addSplitTransaction(final ArrayNode array, final String payCurrency,
-                                          final double amount, final int timestamp) {
+    public ObjectNode addSplitTransaction(final ArrayNode array, final String payCurrency, final double amount, final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
         String formatted = String.format("%.2f", amount);
@@ -220,7 +218,6 @@ public class Account {
      * This operation is not supported for this account type and throws an exception.
      */
     public void setInterestRate(final double interestRate) {
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /**
@@ -229,14 +226,13 @@ public class Account {
      * This operation is not supported for this account type and throws an exception.
      */
     public void addInterest() {
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /**
      * Retrieves the transaction history for the account within a specified time range.
      *
      * @param startTimestamp the start timestamp of the range
-     * @param endTimestamp the end timestamp of the range
+     * @param endTimestamp   the end timestamp of the range
      * @return an {@link ArrayNode} containing the transactions within the time range
      */
     public ArrayNode getReport(final int startTimestamp, final int endTimestamp) {
@@ -263,7 +259,7 @@ public class Account {
      * Retrieves the spending report for the account within a specified time range.
      *
      * @param startTimestamp the start timestamp of the range
-     * @param endTimestamp the end timestamp of the range
+     * @param endTimestamp   the end timestamp of the range
      * @return an {@link ArrayNode} containing the spending transactions within the time range
      */
     public ArrayNode getSpendingsReport(final int startTimestamp, final int endTimestamp) {
@@ -290,7 +286,7 @@ public class Account {
      * Retrieves the commerciants involved in the account's spending within a specified time range.
      *
      * @param startTimestamp the start timestamp of the range
-     * @param endTimestamp the end timestamp of the range
+     * @param endTimestamp   the end timestamp of the range
      * @return an {@link ArrayNode} containing the commerciants and their total spending
      */
     public ArrayNode getCommerciants(final int startTimestamp, final int endTimestamp) {
@@ -301,8 +297,7 @@ public class Account {
             if (timestamp >= startTimestamp && timestamp <= endTimestamp) {
                 String commerciant = reportNode.get("commerciant").asText();
                 double amount = reportNode.get("amount").asDouble();
-                commerchants.put(commerciant, commerchants.getOrDefault(commerciant, 0.0)
-                        + amount);
+                commerchants.put(commerciant, commerchants.getOrDefault(commerciant, 0.0) + amount);
             }
         }
         for (String commerciant : commerchants.keySet()) {
@@ -319,7 +314,7 @@ public class Account {
      * A transaction is recorded for the card deletion.
      *
      * @param cardNumber the card number of the card to delete
-     * @param timestamp the timestamp of the deletion
+     * @param timestamp  the timestamp of the deletion
      */
     public void deleteCard(final String cardNumber, final int timestamp) {
         Card card = getCardByNumber(cardNumber);
@@ -335,4 +330,50 @@ public class Account {
         node.put("account", getIban());
         getOwner().getCommandHistory().addToHistory(node);
     }
+
+    public boolean isSavingsAccount() {
+        return false;
+    }
+
+    public boolean isClassicAccount() {
+        return false;
+    }
+
+    public void deductFee(double amount) throws Exception {
+        if (balance < amount) {
+            throw new Exception("Insufficient funds");
+        } else {
+            balance -= amount;
+        }
+    }
+
+    public ObjectNode cashWithdrawal(Card card, double amount, String email, String location, int timestamp, final ExchangeRatesGraph exchangeRates) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        if (card == null) {
+            return Errors.cardNotFound(timestamp);
+        }
+        if (card.getStatus().equals("frozen")) {
+            return Errors.frozenCard(timestamp);
+        }
+
+        // amount e mereu in RON
+        double newAmount = amount * getOwner().getCommission(amount) * exchangeRates.getRate(Utils.defaultCurrency, card.getAccountBelonging().getCurrency());
+
+        if (balance < newAmount) {
+            return Errors.frozenCard(timestamp);
+        }
+
+        balance -= newAmount;
+        node.put("timestamp", timestamp);
+        node.put("description", "Cash withdrawal of " + amount);
+        node.put("amount", amount);
+
+        card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(node);
+
+        card.getAccountBelonging().addToReport(node);
+        card.getAccountBelonging().addToSpendingsReport(node);
+        return null;
+    }
+
+
 }

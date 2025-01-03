@@ -44,7 +44,10 @@ public class CommandFactory {
             case "changeInterestRate" -> new ChangeInterestRate(app, input);
             case "report" -> new Report(app, input);
             case "spendingsReport" -> new SpendingsReport(app, input);
-            default -> null;
+            case "upgradePlan" -> new UpgradePlan(app, input);
+            case "withdrawSavings" -> new WithdrawSavings(app, input);
+            case "cashWithdrawal" -> new CashWithdrawal(app, input);
+            default -> new Default();
         };
     }
 }

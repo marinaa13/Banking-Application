@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.poo.commands.CommandInvoker;
 import org.poo.fileio.ObjectInput;
+import org.poo.main.accounts.Account;
 import org.poo.utils.Errors;
 import org.poo.utils.Utils;
 import org.poo.utils.Search;
@@ -25,6 +26,7 @@ import java.util.List;
 public class Application {
     private final ObjectInput input;
     private List<User> users;
+    private List<Commerciant> commerciants;
     private ExchangeRatesGraph exchangeRates;
 
     /**
@@ -35,6 +37,7 @@ public class Application {
     public Application(final ObjectInput input) {
         this.input = input;
         users = new ArrayList<>();
+        commerciants = new ArrayList<>();
     }
 
     /**
@@ -54,7 +57,11 @@ public class Application {
      */
     public void parseInput() {
         for (var userInput : input.getUsers()) {
-            users.add(new User(userInput));
+            users.add(new User(userInput, this));
+        }
+
+        for (var commerciantInput : input.getCommerciants()) {
+            commerciants.add(new Commerciant(commerciantInput));
         }
 
         if (input.getExchangeRates() != null) {
@@ -96,6 +103,7 @@ public class Application {
         if (user != null) {
             user.addAccount(account, timestamp);
             account.setOwner(user);
+            account.setCashbackService(new TransactionManager(this));
         }
     }
 
@@ -241,14 +249,17 @@ public class Application {
             return;
         }
 
-        if (from.getBalance() < amount) {
+        double ronAmount = amount * exchangeRates.getRate(from.getCurrency(), Utils.defaultCurrency);
+        double commission = from.getOwner().getCommission(ronAmount);
+
+        if (from.getBalance() < amount * commission) {
             ObjectNode node = Errors.insufficientFunds(timestamp);
             from.getOwner().getCommandHistory().addToHistory(node);
             from.addToReport(node);
             return;
         }
 
-        from.sendMoney(toAccount, amount, description, timestamp);
+        from.sendMoney(toAccount, amount, commission, description, timestamp);
         amount *= exchangeRates.getRate(from.getCurrency(), to.getCurrency());
         to.receiveMoney(fromAccount, amount, description, timestamp);
     }
@@ -489,5 +500,38 @@ public class Application {
      */
     public boolean isIBAN(final String string) {
         return string.matches(".*\\d.*");
+    }
+
+    public void withdrawSavings(String account, double amount, String currency, int timestamp) {
+        Account acc = Search.getAccountByIBAN(users, account);
+        if (acc == null) {
+            return;
+        }
+        amount *= exchangeRates.getRate(currency, acc.getCurrency());
+        acc.getOwner().withdrawSavings(acc, amount, currency, timestamp);
+    }
+
+    public void upgradePlan(String account, String newPlanType, int timestamp) {
+       Account acc = Search.getAccountByIBAN(users, account);
+       if (acc == null) {
+           return;
+       }
+       double rate = exchangeRates.getRate(Utils.defaultCurrency, acc.getCurrency());
+       acc.getOwner().upgradePlan(acc, ServicePlan.valueOf(newPlanType.toUpperCase()), rate, timestamp);
+    }
+
+    public ObjectNode cashWithdrawal(String cardNumber, double amount, String email, String location, int timestamp) {
+        User user = Search.getUserByEmail(users, email);
+        if (user == null) {
+            return Errors.userNotFound(timestamp);
+        }
+        Card card = Search.getCardByNumber(users, cardNumber);
+        if (card == null) {
+            return Errors.cardNotFound(timestamp);
+        }
+
+        ObjectNode inner = card.getAccountBelonging().cashWithdrawal(card, amount, email, location, timestamp, exchangeRates);
+        card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(inner);
+        return null;
     }
 }

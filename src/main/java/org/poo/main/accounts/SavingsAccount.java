@@ -1,4 +1,4 @@
-package org.poo.main;
+package org.poo.main.accounts;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Getter;
 import lombok.Setter;
 import org.poo.fileio.CommandInput;
+import org.poo.main.Card;
 
 /**
  * Represents a savings account that extends from the {@link Account} class.
@@ -66,5 +67,10 @@ public class SavingsAccount extends Account {
     @Override
     public ArrayNode getSpendingsReport(final int startTimestamp, final int endTimestamp) {
         throw new UnsupportedOperationException("Savings accounts do not have a spendings report");
+    }
+
+    @Override
+    public boolean isSavingsAccount() {
+        return true;
     }
 }

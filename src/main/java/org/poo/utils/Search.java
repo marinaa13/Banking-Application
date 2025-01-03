@@ -1,6 +1,6 @@
 package org.poo.utils;
 
-import org.poo.main.Account;
+import org.poo.main.accounts.Account;
 import org.poo.main.Card;
 import org.poo.main.User;
 import java.util.List;

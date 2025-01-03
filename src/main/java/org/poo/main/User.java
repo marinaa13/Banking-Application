@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.poo.commands.CommandHistory;
 import org.poo.fileio.UserInput;
+import org.poo.main.accounts.Account;
 import org.poo.utils.Errors;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,24 +24,13 @@ public class User {
     private String firstName;
     private String lastName;
     private final String email;
+    private final String birthDate;
+    private final String occupation;
+    private ServicePlan plan;
     private List<Account> accounts;
     private CommandHistory commandHistory;
-
-    /**
-     * Constructs a new User with the specified first name, last name, and email.
-     * Initializes an empty list of accounts and a new command history.
-     *
-     * @param firstName the user's first name
-     * @param lastName the user's last name
-     * @param email the user's email address
-     */
-    public User(final String firstName, final String lastName, final String email) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.email = email;
-        accounts = new ArrayList<>();
-        commandHistory = new CommandHistory();
-    }
+    private boolean hasClassicAccount;
+    private final Application app;
 
     /**
      * Constructs a new User using the provided UserInput.
@@ -48,12 +38,16 @@ public class User {
      *
      * @param userInput an instance of UserInput containing user details
      */
-    public User(final UserInput userInput) {
+    public User(final UserInput userInput, final Application app) {
         firstName = userInput.getFirstName();
         lastName = userInput.getLastName();
         email = userInput.getEmail();
+        birthDate = userInput.getBirthDate();
+        occupation = userInput.getOccupation();
+        this.plan = isStudent() ? ServicePlan.STUDENT : ServicePlan.STANDARD;
         accounts = new ArrayList<>();
         commandHistory = new CommandHistory();
+        this.app = app;
     }
 
     /**
@@ -86,6 +80,9 @@ public class User {
      */
     public void addAccount(final Account account, final int timestamp) {
         accounts.add(account);
+        if (account.isClassicAccount()) {
+            hasClassicAccount = true;
+        }
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
         node.put("description", "New account created");
@@ -94,7 +91,6 @@ public class User {
         if (accounts.size() > 1) {
             account.addToReport(node);
         }
-
         commandHistory.addToHistory(node);
     }
 
@@ -146,6 +142,98 @@ public class User {
                 acc.addCard(card);
                 acc.addToReport(node);
             }
+        }
+    }
+
+    public boolean isStudent() {
+        return occupation.equals("student");
+    }
+
+    public int getAge() {
+        return 2024 - Integer.parseInt(birthDate.substring(0, 4));
+    }
+
+    public void withdrawSavings(Account acc, double amount, String currency, int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        if (getFirstClassicAccount(currency) == null) {
+            node.put("description", "You do not have a classic account.");
+        } else if (getAge() < 21) {
+            node.put("description", "You don't have the minimum age required.");
+        } else if (!acc.isSavingsAccount()) {
+            node.put("description", "Account is not of type savings.");
+        } else {
+            Account to = getFirstClassicAccount(currency);
+            makeWithdrawal(acc, to, amount, currency, timestamp);
+            node.put("description", "Savings withdrawal");
+        }
+        getCommandHistory().addToHistory(node);
+    }
+
+    public Account getFirstClassicAccount(String currency) {
+        for (Account acc : accounts) {
+            if (acc.isClassicAccount() && acc.getCurrency().equals(currency)) {
+                return acc;
+            }
+        }
+        return null;
+    }
+
+    public void makeWithdrawal(Account from, Account to, double amount, String currency, int timestamp) {
+        if (from.getBalance() >= amount) {
+            from.setBalance(from.getBalance() - amount);
+            to.setBalance(to.getBalance() + amount);
+        } else {
+            ObjectNode node = Errors.insufficientFunds(timestamp);
+            getCommandHistory().addToHistory(node);
+        }
+    }
+
+    public void upgradePlan(Account acc, ServicePlan newPlanType, double rate, int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "Upgrade plan");
+        node.put("accountIBAN", acc.getIban());
+        node.put("newPlanType", newPlanType.toString().toLowerCase());
+        commandHistory.addToHistory(node);
+
+        if (newPlanType == plan) {
+            node.put("description", "The user already has the " + plan + " plan.");
+        } else if (newPlanType.ordinal() < plan.ordinal()) {
+            node.put("description", "You cannot downgrade your plan.");
+        } else {
+            changePlan(newPlanType, acc, rate);
+        }
+    }
+
+    private void changePlan(ServicePlan newPlanType, Account acc, double rate) {
+        double amount = 0;
+        if ((plan == ServicePlan.STUDENT || plan == ServicePlan.STANDARD) && newPlanType == ServicePlan.SILVER) {
+            amount = 100 * rate;
+        } else if ((plan == ServicePlan.STUDENT || plan == ServicePlan.STANDARD) && newPlanType == ServicePlan.GOLD) {
+            amount = 350 * rate;
+        } else if (plan == ServicePlan.SILVER && newPlanType == ServicePlan.GOLD) {
+            amount = 250 * rate;
+        }
+        try {
+            acc.deductFee(amount);
+            plan = newPlanType;
+        } catch (Exception e) {
+            ObjectNode node = Errors.insufficientFunds(0);
+            commandHistory.addToHistory(node);
+        }
+    }
+
+    public double getCommission(double amount) {
+        switch(plan) {
+            case STANDARD:
+                return 1.002;
+            case SILVER:
+                if (amount > 500) {
+                    return 1.001;
+                }
+            default:
+                return 1;
         }
     }
 }

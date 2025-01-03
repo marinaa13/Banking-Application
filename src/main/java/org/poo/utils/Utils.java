@@ -13,6 +13,7 @@ public final class Utils {
     private static final int DIGIT_GENERATION = 16;
     private static final String RO_STR = "RO";
     private static final String POO_STR = "POOB";
+    public static final String defaultCurrency = "RON";
 
 
     private static Random ibanRandom = new Random(IBAN_SEED);

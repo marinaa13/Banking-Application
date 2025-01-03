@@ -57,6 +57,19 @@ public final class Errors {
     }
 
     /**
+     * Creates a JSON object representing a "User not found" error with a timestamp.
+     *
+     * @param timestamp the timestamp when the error occurred
+     * @return a JSON object containing the timestamp and the error description
+     */
+    public static ObjectNode userNotFound(final int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "User not found");
+        return node;
+    }
+
+    /**
      * Creates a JSON object representing a "Frozen card" error with a timestamp.
      *
      * @param timestamp the timestamp when the error occurred
