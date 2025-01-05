@@ -164,7 +164,7 @@ public class User {
             node.put("description", "Account is not of type savings.");
         } else {
             Account to = getFirstClassicAccount(currency);
-            makeWithdrawal(acc, to, amount, currency, timestamp);
+            makeSavingsWithdrawal(acc, to, amount, currency, timestamp);
             node.put("description", "Savings withdrawal");
         }
         getCommandHistory().addToHistory(node);
@@ -179,7 +179,8 @@ public class User {
         return null;
     }
 
-    public void makeWithdrawal(Account from, Account to, double amount, String currency, int timestamp) {
+    //amountul e in currency
+    public void makeSavingsWithdrawal(Account from, Account to, double amount, String currency, int timestamp) {
         if (from.getBalance() >= amount) {
             from.setBalance(from.getBalance() - amount);
             to.setBalance(to.getBalance() + amount);

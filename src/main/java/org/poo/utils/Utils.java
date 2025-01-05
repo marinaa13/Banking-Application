@@ -13,8 +13,11 @@ public final class Utils {
     private static final int DIGIT_GENERATION = 16;
     private static final String RO_STR = "RO";
     private static final String POO_STR = "POOB";
-    public static final String defaultCurrency = "RON";
-
+    public static final String DEFAULT_CURRENCY = "RON";
+    public static final int TOTAL_DISCOUNTS = 3;
+    public static final int FOOD_DISCOUNT = 2;
+    public static final int CLOTHES_DISCOUNT = 5;
+    public static final int TECH_DISCOUNT = 10;
 
     private static Random ibanRandom = new Random(IBAN_SEED);
     private static Random cardRandom = new Random(CARD_SEED);
@@ -58,5 +61,9 @@ public final class Utils {
     public static void resetRandom() {
         ibanRandom = new Random(IBAN_SEED);
         cardRandom = new Random(CARD_SEED);
+    }
+
+    public static double makeAproximation(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 }

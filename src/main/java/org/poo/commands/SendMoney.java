@@ -1,5 +1,6 @@
 package org.poo.commands;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
@@ -48,7 +49,14 @@ public class SendMoney implements Command {
      */
     @Override
     public ObjectNode execute() {
-        app.sendMoney(sender, receiver, amount, description, timestamp);
+        ObjectNode inner = app.sendMoney(sender, receiver, amount, description, timestamp);
+        if (inner != null) {
+            ObjectNode node = JsonNodeFactory.instance.objectNode();
+            node.put("command", "sendMoney");
+            node.set("output", inner);
+            node.put("timestamp", timestamp);
+            return node;
+        }
         return null;
     }
 }

@@ -13,7 +13,7 @@ import java.util.TreeMap;
 
 import org.poo.main.Card;
 import org.poo.main.ExchangeRatesGraph;
-import org.poo.main.CashbackService;
+import org.poo.main.moneyback.CashbackService;
 import org.poo.main.User;
 import org.poo.utils.Errors;
 import org.poo.utils.Utils;
@@ -119,10 +119,17 @@ public class Account {
             return Errors.insufficientFunds(timestamp);
         }
 
-        amount -= cashbackService.giveCashback(commerciant, amount);
-        //pt tranzactii, mereu e in RON
+        // verific daca am vreun cashback de dat pt tranzactii, care poate fi primit de orice comerciant
+        double cashback = cashbackService.giveCashbackForTransactions(commerciant, amount);
+
+        // adaug tranzactia, indiferent ce tip e
         cashbackService.addTransactionToCommerciant(commerciant, ronAmount);
-        balance -= amount;
+
+        //verific cashbackul pt amount, care poate fi primit si pt tranzactia curenta
+        cashback += cashbackService.giveCashbackForAmount(commerciant, amount - cashback, getOwner().getPlan());
+
+        balance -= (amount - cashback);
+        balance = Utils.makeAproximation(balance);
         node.put("timestamp", timestamp);
         node.put("description", "Card payment");
         node.put("amount", amount / getOwner().getCommission(ronAmount));
@@ -225,7 +232,8 @@ public class Account {
      * <p>
      * This operation is not supported for this account type and throws an exception.
      */
-    public void addInterest() {
+    public ObjectNode addInterest() {
+        return null;
     }
 
     /**
@@ -357,7 +365,7 @@ public class Account {
         }
 
         // amount e mereu in RON
-        double newAmount = amount * getOwner().getCommission(amount) * exchangeRates.getRate(Utils.defaultCurrency, card.getAccountBelonging().getCurrency());
+        double newAmount = amount * getOwner().getCommission(amount) * exchangeRates.getRate(Utils.DEFAULT_CURRENCY, card.getAccountBelonging().getCurrency());
 
         if (balance < newAmount) {
             return Errors.frozenCard(timestamp);
@@ -368,10 +376,11 @@ public class Account {
         node.put("description", "Cash withdrawal of " + amount);
         node.put("amount", amount);
 
+
         card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(node);
 
         card.getAccountBelonging().addToReport(node);
-        card.getAccountBelonging().addToSpendingsReport(node);
+        //card.getAccountBelonging().addToSpendingsReport(node);
         return null;
     }
 

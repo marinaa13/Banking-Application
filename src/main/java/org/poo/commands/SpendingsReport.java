@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
 import org.poo.utils.Errors;
+import org.poo.utils.Output;
 
 /**
  * Represents a command to generate a spendings report for a specific account
@@ -41,7 +42,7 @@ public class SpendingsReport implements Command {
 
     /**
      * Executes the spendings report command by calling the
-     * {@link Application#getSpendingsReport(String, int, int)} method to retrieve
+     * {@link Application#getSpendingsReport(String, int, int, int)} method to retrieve
      * the spendings report for the specified account within the given time range.
      * <p>
      * If the account is found, the report is returned;
@@ -51,17 +52,7 @@ public class SpendingsReport implements Command {
      */
     @Override
     public ObjectNode execute() {
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("command", "spendingsReport");
-
-        ObjectNode inner = app.getSpendingsReport(account, startTimestamp, endTimestamp);
-
-        if (inner == null) {
-            inner = Errors.accountNotFound(timestamp);
-        }
-
-        node.set("output", inner);
-        node.put("timestamp", timestamp);
-        return node;
+        ObjectNode inner = app.getSpendingsReport(account, startTimestamp, endTimestamp, timestamp);
+        return Output.getCommand("spendingsReport", inner, timestamp);
     }
 }

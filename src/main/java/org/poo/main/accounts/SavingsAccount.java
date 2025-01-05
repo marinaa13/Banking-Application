@@ -38,7 +38,7 @@ public class SavingsAccount extends Account {
     public ObjectNode getJson() {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("IBAN", getIban());
-        node.put("balance", getBalance());
+        node.put("balance", Math.round(getBalance() * 100.0) / 100.0);
         node.put("currency", getCurrency());
         node.put("type", "savings");
 
@@ -54,9 +54,16 @@ public class SavingsAccount extends Account {
      * Adds interest to the savings account balance based on the interest rate.
      * The interest is calculated using the current balance and the interest rate.
      */
-    public void addInterest() {
-        double interest = getBalance() * interestRate / 100;
+    public ObjectNode addInterest() {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+
+        double interest = getBalance() * interestRate;
         setBalance(getBalance() + interest);
+
+        node.put("amount", interest);
+        node.put("currency", getCurrency());
+        node.put("description", "Interest rate income");
+        return node;
     }
 
     /**

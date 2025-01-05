@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
+import org.poo.utils.Output;
 
 /**
  * Represents a command to print the transaction history for a specific user.
@@ -43,13 +44,7 @@ public class PrintTransactions implements Command {
      */
     @Override
     public ObjectNode execute() {
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("command", "printTransactions");
-
         ArrayNode inner = app.printTransactions(email);
-
-        node.set("output", inner);
-        node.put("timestamp", timestamp);
-        return node;
+        return Output.getCommand("printTransactions", inner, timestamp);
     }
 }

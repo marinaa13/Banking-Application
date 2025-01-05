@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
 import org.poo.utils.Errors;
+import org.poo.utils.Output;
 
 /**
  * Represents a command that generates a report for a specific account within a given time range.
@@ -40,7 +41,7 @@ public class Report implements Command {
 
     /**
      * Executes the report command by calling the
-     * {@link Application#getReport(String, int, int)} method to retrieve the transaction report
+     * {@link Application#getReport(String, int, int, int)} method to retrieve the transaction report
      * for the specified account within the given time range.
      * <p>
      * If the account is found, the report is returned; otherwise, an error message is returned.
@@ -49,17 +50,7 @@ public class Report implements Command {
      */
     @Override
     public ObjectNode execute() {
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("command", "report");
-
-        ObjectNode inner = app.getReport(account, startTimestamp, endTimestamp);
-
-        if (inner == null) {
-            inner = Errors.accountNotFound(timestamp);
-        }
-
-        node.set("output", inner);
-        node.put("timestamp", timestamp);
-        return node;
+        ObjectNode inner = app.getReport(account, startTimestamp, endTimestamp, timestamp);
+        return Output.getCommand("report", inner, timestamp);
     }
 }

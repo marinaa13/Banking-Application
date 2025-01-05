@@ -41,7 +41,7 @@ public class ClassicAccount extends Account{
      * <p>
      * This operation is not supported for this account type and throws an exception.
      */
-    public void addInterest() {
+    public ObjectNode addInterest() {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

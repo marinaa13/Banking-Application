@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
 import org.poo.main.User;
+import org.poo.utils.Output;
 
 /**
  * Represents a command to print the details of all users in the application.
@@ -41,15 +42,7 @@ public class PrintUsers implements Command {
      */
     @Override
     public ObjectNode execute() {
-        ObjectNode output = JsonNodeFactory.instance.objectNode();
-        output.put("command", "printUsers");
-
-        ArrayNode array = JsonNodeFactory.instance.arrayNode();
-        for (User user : app.getUsers()) {
-            array.add(user.getJson());
-        }
-        output.set("output", array);
-        output.put("timestamp", timestamp);
-        return output;
+        ArrayNode inner = app.printUsers();
+        return Output.getCommand("printUsers", inner, timestamp);
     }
 }

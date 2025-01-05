@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
+import org.poo.utils.Output;
 
 public class CashWithdrawal implements Command {
     private final Application app;
@@ -26,11 +27,7 @@ public class CashWithdrawal implements Command {
     public ObjectNode execute() {
         ObjectNode inner = app.cashWithdrawal(cardNumber, amount, email, location, timestamp);
         if (inner != null) {
-            ObjectNode node = JsonNodeFactory.instance.objectNode();
-            node.put("command", "cashWithdrawal");
-            node.set("output", inner);
-            node.put("timestamp", timestamp);
-            return node;
+            return Output.getCommand("cashWithdrawal", inner, timestamp);
         }
         return null;
     }

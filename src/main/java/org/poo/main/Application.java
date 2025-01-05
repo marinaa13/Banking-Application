@@ -9,6 +9,7 @@ import lombok.Setter;
 import org.poo.commands.CommandInvoker;
 import org.poo.fileio.ObjectInput;
 import org.poo.main.accounts.Account;
+import org.poo.main.moneyback.CashbackService;
 import org.poo.utils.Errors;
 import org.poo.utils.Utils;
 import org.poo.utils.Search;
@@ -103,7 +104,7 @@ public class Application {
         if (user != null) {
             user.addAccount(account, timestamp);
             account.setOwner(user);
-            account.setCashbackService(new TransactionManager(this));
+            account.setCashbackService(new CashbackService(this));
         }
     }
 
@@ -129,6 +130,7 @@ public class Application {
         } else {
             node.put("success", "Account deleted");
         }
+        node.put("timestamp", timestamp);
         return node;
     }
 
@@ -239,29 +241,30 @@ public class Application {
      * @param description a description for the transaction
      * @param timestamp the timestamp of the transaction
      */
-    public void sendMoney(final String fromAccount, final String toAccount, double amount,
+    public ObjectNode sendMoney(final String fromAccount, final String toAccount, double amount,
                           final String description, final int timestamp) {
         Account from = Search.getAccountByIBAN(users, fromAccount);
         Account to = isIBAN(toAccount) ? Search.getAccountByIBAN(users, toAccount)
                                         : Search.getAccountByAlias(users, toAccount);
 
         if (from == null || to == null) {
-            return;
+            return Errors.userNotFound(timestamp);
         }
 
-        double ronAmount = amount * exchangeRates.getRate(from.getCurrency(), Utils.defaultCurrency);
+        double ronAmount = amount * exchangeRates.getRate(from.getCurrency(), Utils.DEFAULT_CURRENCY);
         double commission = from.getOwner().getCommission(ronAmount);
 
         if (from.getBalance() < amount * commission) {
             ObjectNode node = Errors.insufficientFunds(timestamp);
             from.getOwner().getCommandHistory().addToHistory(node);
             from.addToReport(node);
-            return;
+            return null;
         }
 
         from.sendMoney(toAccount, amount, commission, description, timestamp);
         amount *= exchangeRates.getRate(from.getCurrency(), to.getCurrency());
         to.receiveMoney(fromAccount, amount, description, timestamp);
+        return null;
     }
 
     /**
@@ -355,7 +358,9 @@ public class Application {
             return Errors.accountNotFound(timestamp);
         }
         try {
-            acc.addInterest();
+            ObjectNode node = acc.addInterest();
+            node.put("timestamp", timestamp);
+            acc.getOwner().getCommandHistory().addToHistory(node);
         } catch (UnsupportedOperationException e) {
             return Errors.notSavingsAccount(timestamp);
         }
@@ -450,10 +455,10 @@ public class Application {
      * @return an {@link ObjectNode} representing the account's report
      */
     public ObjectNode getReport(final String account, final int startTimestamp,
-                                final int endTimestamp) {
+                                final int endTimestamp, final int timestamp) {
         Account acc = Search.getAccountByIBAN(users, account);
         if (acc == null) {
-            return null;
+            return Errors.accountNotFound(timestamp);
         }
 
         ObjectNode node = JsonNodeFactory.instance.objectNode();
@@ -473,16 +478,16 @@ public class Application {
      * @return an {@link ObjectNode} representing the account's spending report
      */
     public ObjectNode getSpendingsReport(final String account, final int startTimestamp,
-                                         final int endTimestamp) {
+                                         final int endTimestamp, final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         Account acc = Search.getAccountByIBAN(users, account);
         if (acc == null) {
-            return null;
+            return Errors.accountNotFound(timestamp);
         }
         try {
             ArrayNode array = acc.getSpendingsReport(startTimestamp, endTimestamp);
             node.put("IBAN", acc.getIban());
-            node.put("balance", acc.getBalance());
+            node.put("balance", Math.round(acc.getBalance() * 100.0) / 100.0);
             node.put("currency", acc.getCurrency());
             node.set("transactions", array);
             node.set("commerciants", acc.getCommerciants(startTimestamp, endTimestamp));
@@ -516,7 +521,7 @@ public class Application {
        if (acc == null) {
            return;
        }
-       double rate = exchangeRates.getRate(Utils.defaultCurrency, acc.getCurrency());
+       double rate = exchangeRates.getRate(Utils.DEFAULT_CURRENCY, acc.getCurrency());
        acc.getOwner().upgradePlan(acc, ServicePlan.valueOf(newPlanType.toUpperCase()), rate, timestamp);
     }
 
@@ -533,5 +538,13 @@ public class Application {
         ObjectNode inner = card.getAccountBelonging().cashWithdrawal(card, amount, email, location, timestamp, exchangeRates);
         card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(inner);
         return null;
+    }
+
+    public ArrayNode printUsers() {
+        ArrayNode array = JsonNodeFactory.instance.arrayNode();
+        for (User user : users) {
+            array.add(user.getJson());
+        }
+        return array;
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
+import org.poo.utils.Output;
 
 /**
  * Represents a command to make an online payment using a specified card.
@@ -54,11 +55,7 @@ public class PayOnline implements Command {
     public ObjectNode execute() {
         ObjectNode inner = app.payOnline(cardNumber, amount, currency, timestamp, commerciant);
         if (inner != null) {
-            ObjectNode node = JsonNodeFactory.instance.objectNode();
-            node.put("command", "payOnline");
-            node.set("output", inner);
-            node.put("timestamp", timestamp);
-            return node;
+            return Output.getCommand("payOnline", inner, timestamp);
         }
         return null;
     }

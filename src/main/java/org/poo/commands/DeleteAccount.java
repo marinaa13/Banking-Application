@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
+import org.poo.utils.Output;
 
 /**
  * Represents a command to delete a specific account for a user identified by email.
@@ -46,14 +47,7 @@ public class DeleteAccount implements Command {
      */
     @Override
     public ObjectNode execute() {
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("command", "deleteAccount");
-
         ObjectNode inner = app.deleteAccount(email, account, timestamp);
-        inner.put("timestamp", timestamp);
-
-        node.set("output", inner);
-        node.put("timestamp", timestamp);
-        return node;
+        return Output.getCommand("deleteAccount", inner, timestamp);
     }
 }

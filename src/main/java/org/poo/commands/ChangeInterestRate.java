@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
+import org.poo.utils.Output;
 
 /**
  * Represents a command to change the interest rate for a specific account.
@@ -50,11 +51,7 @@ public class ChangeInterestRate implements Command {
     public ObjectNode execute() {
         ObjectNode inner = app.changeInterestRate(newInterestRate, account, timestamp);
         if (inner != null) {
-            ObjectNode node = JsonNodeFactory.instance.objectNode();
-            node.put("command", "changeInterestRate");
-            node.set("output", inner);
-            node.put("timestamp", timestamp);
-            return node;
+            return Output.getCommand("changeInterestRate", inner, timestamp);
         }
         return null;
     }

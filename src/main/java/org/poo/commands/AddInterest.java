@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
+import org.poo.utils.Output;
 
 /**
  * Represents a command to add interest to a specific account.
@@ -47,11 +48,7 @@ public class AddInterest implements Command {
     public ObjectNode execute() {
         ObjectNode inner = app.addInterest(account, timestamp);
         if (inner != null) {
-            ObjectNode node = JsonNodeFactory.instance.objectNode();
-            node.put("command", "addInterest");
-            node.set("output", inner);
-            node.put("timestamp", timestamp);
-            return node;
+            return Output.getCommand("addInterest", inner, timestamp);
         }
         return null;
     }
