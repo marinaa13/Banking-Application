@@ -1,6 +1,6 @@
 package org.poo.main;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -9,12 +9,18 @@ import lombok.Setter;
 import org.poo.commands.CommandInvoker;
 import org.poo.fileio.ObjectInput;
 import org.poo.main.accounts.Account;
+import org.poo.main.cardTypes.Card;
 import org.poo.main.moneyback.CashbackService;
+import org.poo.main.splitPayment.SplitPayment;
+import org.poo.main.splitPayment.SplitPaymentInfo;
+import org.poo.main.splitPayment.SplitPaymentStatus;
+import org.poo.main.userTypes.User;
 import org.poo.utils.Errors;
 import org.poo.utils.Utils;
 import org.poo.utils.Search;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -225,6 +231,7 @@ public class Application {
 
         ObjectNode node = card.getAccountBelonging()
                 .makePayment(card, amount, currency, exchangeRates, timestamp, commerciant);
+
         card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(node);
         if (node.has("amount")) {
             card.madePayment(timestamp);
@@ -247,14 +254,24 @@ public class Application {
         Account to = isIBAN(toAccount) ? Search.getAccountByIBAN(users, toAccount)
                                         : Search.getAccountByAlias(users, toAccount);
 
+        if (to == null) {
+            Commerciant comm = Search.getCommerciantByIban(commerciants, toAccount);
+            if (comm != null && from != null) {
+                //transfer bancar catre comerciant
+                from.sendMoneyToCommerciant(amount, exchangeRates, comm, description, timestamp);
+                return null;
+            }
+        }
+
         if (from == null || to == null) {
             return Errors.userNotFound(timestamp);
         }
 
         double ronAmount = amount * exchangeRates.getRate(from.getCurrency(), Utils.DEFAULT_CURRENCY);
         double commission = from.getOwner().getCommission(ronAmount);
+        double newAmount = amount * commission;
 
-        if (from.getBalance() < amount * commission) {
+        if (from.getBalance() < newAmount) {
             ObjectNode node = Errors.insufficientFunds(timestamp);
             from.getOwner().getCommandHistory().addToHistory(node);
             from.addToReport(node);
@@ -262,8 +279,12 @@ public class Application {
         }
 
         from.sendMoney(toAccount, amount, commission, description, timestamp);
+        from.checkForGold(newAmount, exchangeRates);
         amount *= exchangeRates.getRate(from.getCurrency(), to.getCurrency());
         to.receiveMoney(fromAccount, amount, description, timestamp);
+
+        from.setBalance(from.getBalance());
+        to.setBalance(to.getBalance());
         return null;
     }
 
@@ -289,7 +310,18 @@ public class Application {
     public ArrayNode printTransactions(final String email) {
         User user = Search.getUserByEmail(users, email);
         if (user != null) {
-            return user.getCommandHistory().getHistory();
+            ArrayNode array = user.getCommandHistory().getHistory();
+            // Convert ArrayNode to List<JsonNode> for easier sorting
+            List<JsonNode> list = new ArrayList<>();
+            array.forEach(list::add);
+
+            // Sort the List based on the "timestamp" field
+            list.sort(Comparator.comparingLong(node -> node.get("timestamp").asLong()));
+
+            // Clear the original ArrayNode and add the sorted nodes back
+            array.removeAll();
+            list.forEach(array::add);
+            return array;
         }
         return null;
     }
@@ -368,17 +400,6 @@ public class Application {
     }
 
     /**
-     * Converts a list of account IBANs to an array of JSON objects.
-     *
-     * @param accounts a list of account IBANs
-     * @return an {@link ArrayNode} containing the account IBANs as JSON
-     */
-    public ArrayNode getAccountsArray(final List<String> accounts) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        return objectMapper.valueToTree(accounts);
-    }
-
-    /**
      * Splits a payment across multiple accounts.
      * <p>
      * This method attempts to divide the payment equally among the accounts
@@ -391,59 +412,28 @@ public class Application {
      * @param amount the total amount to be paid
      * @param timestamp the timestamp of the payment
      */
-    public void splitPayment(final List<String> accounts, final String currency,
-                             final double amount, final int timestamp) {
-        double toPay = amount / accounts.size();
-        int ok = 1;
-        String accountToBlame = "";
-
+    public ObjectNode splitPayment(final String type, final List<String> accounts, final String currency,
+                                   final double amount,  final List<Double> amountForUsers,
+                                   final int timestamp, final int id) {
+        SplitPayment splitPayment = new SplitPayment(type, accounts, amount, currency, amountForUsers, exchangeRates, timestamp);
         for (String account : accounts) {
             Account acc = Search.getAccountByIBAN(users, account);
             if (acc == null) {
-                return;
+                return Errors.invalidAccountForSplit(timestamp);
             }
-            toPay *= exchangeRates.getRate(currency, acc.getCurrency());
-
-            if (acc.getBalance() < toPay) {
-                ok = 0;
-                accountToBlame = acc.getIban();
-            }
-            toPay = amount / accounts.size();
+            splitPayment.addObserver(acc.getOwner());
         }
 
-        if (ok == 0) {
-            for (String account : accounts) {
-                Account acc = Search.getAccountByIBAN(users, account);
-                if (acc == null) {
-                    return;
-                }
-                ObjectNode node = JsonNodeFactory.instance.objectNode();
-                node.put("amount", toPay);
-                node.put("currency", currency);
-                String formatted = String.format("%.2f", amount);
-                node.put("description", "Split payment of " + formatted + " " + currency);
-                node.put("error",
-                        "Account " + accountToBlame
-                                + " has insufficient funds for a split payment.");
-                node.set("involvedAccounts", getAccountsArray(accounts));
-                node.put("timestamp", timestamp);
-                acc.addToReport(node);
-                acc.getOwner().getCommandHistory().addToHistory(node);
-            }
-        } else {
-            for (String account : accounts) {
-                Account acc = Search.getAccountByIBAN(users, account);
-                if (acc == null) {
-                    return;
-                }
-                acc.setBalance(acc.getBalance()
-                        - toPay * exchangeRates.getRate(currency, acc.getCurrency()));
-                ArrayNode accountsArray = getAccountsArray(accounts);
-                ObjectNode node = acc.addSplitTransaction(accountsArray, currency,
-                                                            amount, timestamp);
-                acc.getOwner().getCommandHistory().addToHistory(node);
-            }
+        // Daca toate conturile exista, adaug splitPaymentInfo in coada de plati a fiecarui user
+        // si setez statusul platii ca PENDING pt fiecare user
+        for (String account : accounts) {
+            Account acc = Search.getAccountByIBAN(users, account);
+            User user = acc.getOwner();
+            splitPayment.getUserStatuses().put(acc, SplitPaymentStatus.PENDING);
+            SplitPaymentInfo splitPaymentInfo = new SplitPaymentInfo(splitPayment, acc, id);
+            user.getSplitPaymentQueue().add(splitPaymentInfo);
         }
+        return null;
     }
 
     /**
@@ -487,7 +477,7 @@ public class Application {
         try {
             ArrayNode array = acc.getSpendingsReport(startTimestamp, endTimestamp);
             node.put("IBAN", acc.getIban());
-            node.put("balance", Math.round(acc.getBalance() * 100.0) / 100.0);
+            node.put("balance", acc.getBalance());
             node.put("currency", acc.getCurrency());
             node.set("transactions", array);
             node.set("commerciants", acc.getCommerciants(startTimestamp, endTimestamp));
@@ -536,6 +526,7 @@ public class Application {
         }
 
         ObjectNode inner = card.getAccountBelonging().cashWithdrawal(card, amount, email, location, timestamp, exchangeRates);
+        card.getAccountBelonging().setBalance(card.getAccountBelonging().getBalance());
         card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(inner);
         return null;
     }
@@ -546,5 +537,23 @@ public class Application {
             array.add(user.getJson());
         }
         return array;
+    }
+
+    public ObjectNode acceptSplitPayment(String email, int timestamp) {
+        User user = Search.getUserByEmail(users, email);
+        if (user == null) {
+            return Errors.userNotFound(timestamp);
+        }
+        user.handleSplitPayment(timestamp, SplitPaymentStatus.ACCEPTED);
+        return null;
+    }
+
+    public ObjectNode rejectSplitPayment(String email, int timestamp) {
+        User user = Search.getUserByEmail(users, email);
+        if (user == null) {
+            return Errors.userNotFound(timestamp);
+        }
+        user.handleSplitPayment(timestamp, SplitPaymentStatus.REJECTED);
+        return null;
     }
 }

@@ -1,8 +1,9 @@
 package org.poo.utils;
 
+import org.poo.main.Commerciant;
 import org.poo.main.accounts.Account;
-import org.poo.main.Card;
-import org.poo.main.User;
+import org.poo.main.cardTypes.Card;
+import org.poo.main.userTypes.User;
 import java.util.List;
 
 /**
@@ -46,6 +47,15 @@ public final class Search {
                 if (account.getIban().equals(iban)) {
                     return account;
                 }
+            }
+        }
+        return null;
+    }
+
+    public static Commerciant getCommerciantByIban(final List<Commerciant> commerciants, final String iban) {
+        for (Commerciant commerciant : commerciants) {
+            if (commerciant.getAccount().equals(iban)) {
+                return commerciant;
             }
         }
         return null;

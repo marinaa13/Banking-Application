@@ -107,4 +107,11 @@ public final class Errors {
         node.put("description", "Account couldn't be deleted - there are funds remaining");
         return node;
     }
+
+    public static ObjectNode invalidAccountForSplit(final int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "One of the accounts is invalid");
+        return node;
+    }
 }

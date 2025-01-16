@@ -3,6 +3,8 @@ package org.poo.commands;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
+import org.poo.utils.Utils;
+
 import java.util.List;
 
 /**
@@ -13,11 +15,13 @@ import java.util.List;
  */
 public class SplitPayment implements Command {
     private final Application app;
+    private final String type;
     private final List<String> accounts;
     private final String currency;
     private final double amount;
+    private final List<Double> amountForUsers;
     private final int timestamp;
-
+    private final int id;
     /**
      * Constructs a {@link SplitPayment} command using the provided
      * {@link Application} and {@link CommandInput}.
@@ -28,15 +32,18 @@ public class SplitPayment implements Command {
      */
     public SplitPayment(final Application app, final CommandInput input) {
         this.app = app;
+        type = input.getSplitPaymentType();
         accounts = input.getAccounts();
         currency = input.getCurrency();
         amount = input.getAmount();
+        amountForUsers = input.getAmountForUsers();
         timestamp = input.getTimestamp();
+        id = Utils.generateSplitPayment();
     }
 
     /**
      * Executes the split payment command by calling the
-     * {@link Application#splitPayment(List, String, double, int)}
+     * {@link Application#splitPayment} method to process the payment across the specified accounts.
      * method to process the payment across the specified accounts.
      * <p>
      * The command does not return any specific result
@@ -45,7 +52,7 @@ public class SplitPayment implements Command {
      */
     @Override
     public ObjectNode execute() {
-        app.splitPayment(accounts, currency, amount, timestamp);
+        app.splitPayment(type, accounts, currency, amount, amountForUsers, timestamp, id);
         return null;
     }
 }

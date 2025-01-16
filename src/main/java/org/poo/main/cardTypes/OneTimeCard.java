@@ -1,4 +1,4 @@
-package org.poo.main;
+package org.poo.main.cardTypes;
 
 import org.poo.fileio.CommandInput;
 import org.poo.utils.Utils;

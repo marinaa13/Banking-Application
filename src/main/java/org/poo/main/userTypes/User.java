@@ -1,4 +1,4 @@
-package org.poo.main;
+package org.poo.main.userTypes;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -7,10 +7,19 @@ import lombok.Getter;
 import lombok.Setter;
 import org.poo.commands.CommandHistory;
 import org.poo.fileio.UserInput;
+import org.poo.main.Application;
+import org.poo.main.ServicePlan;
 import org.poo.main.accounts.Account;
+import org.poo.main.accounts.BusinessAccount;
+import org.poo.main.cardTypes.Card;
+import org.poo.main.splitPayment.Observer;
+import org.poo.main.splitPayment.SplitPayment;
+import org.poo.main.splitPayment.SplitPaymentInfo;
+import org.poo.main.splitPayment.SplitPaymentStatus;
 import org.poo.utils.Errors;
-import java.util.ArrayList;
-import java.util.List;
+import org.poo.utils.Utils;
+
+import java.util.*;
 
 /**
  * Represents a user with personal information, associated accounts, and a command history.
@@ -20,7 +29,7 @@ import java.util.List;
  * The user is identified by their unique email address.
  */
 @Getter @Setter
-public class User {
+public class User implements Observer {
     private String firstName;
     private String lastName;
     private final String email;
@@ -30,7 +39,13 @@ public class User {
     private List<Account> accounts;
     private CommandHistory commandHistory;
     private boolean hasClassicAccount;
+    private Queue<SplitPaymentInfo> splitPaymentQueue;
+    private int numPayments;
     private final Application app;
+
+    private boolean isOwner;
+    private boolean isManager;
+    private boolean isEmployee;
 
     /**
      * Constructs a new User using the provided UserInput.
@@ -47,6 +62,7 @@ public class User {
         this.plan = isStudent() ? ServicePlan.STUDENT : ServicePlan.STANDARD;
         accounts = new ArrayList<>();
         commandHistory = new CommandHistory();
+        splitPaymentQueue = new LinkedList<>();
         this.app = app;
     }
 
@@ -79,6 +95,22 @@ public class User {
      * @param timestamp the timestamp when the account was added
      */
     public void addAccount(final Account account, final int timestamp) {
+        accounts.add(account);
+        if (account.isClassicAccount()) {
+            hasClassicAccount = true;
+        }
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "New account created");
+
+        // Add account report if it's not the first account
+        if (accounts.size() > 1) {
+            account.addToReport(node);
+        }
+        commandHistory.addToHistory(node);
+    }
+
+    public void addAccount(final BusinessAccount account, final int timestamp) {
         accounts.add(account);
         if (account.isClassicAccount()) {
             hasClassicAccount = true;
@@ -235,6 +267,83 @@ public class User {
                 }
             default:
                 return 1;
+        }
+    }
+
+    @Override
+    public void update(SplitPayment splitPayment) {
+        // finding the split payment in the queue to remove it
+        SplitPaymentInfo currentOp = null;
+        for (SplitPaymentInfo splitPaymentInfo : splitPaymentQueue) {
+            if (splitPaymentInfo.getSplitPayment() == splitPayment) {
+                currentOp = splitPaymentInfo;
+                splitPaymentQueue.remove(splitPaymentInfo);
+                break;
+            }
+        }
+        Account acc = currentOp.getAccount();
+
+        if (currentOp.getSplitPayment().isRejected()) {
+
+            ObjectNode node = JsonNodeFactory.instance.objectNode();
+            node.put("timestamp", splitPayment.getTimestamp());
+            String formatted = String.format("%.2f", splitPayment.getAmount());
+            node.put("description", "Split payment of " + formatted + " " + splitPayment.getCurrency());
+            node.put("splitPaymentType", splitPayment.getSplitPaymentType());
+            node.put("currency", splitPayment.getCurrency());
+            node.set("amountForUsers", splitPayment.getAmountsArray());
+            node.set("involvedAccounts", splitPayment.getAccountsArray());
+            node.put("error", "One user rejected the payment.");
+            acc.addToReport(node);
+            getCommandHistory().addToHistory(node);
+            return;
+        }
+
+        if (splitPayment.getAccountToBlame().isEmpty()) {
+            Double amount = splitPayment.getAmountForUser().get(splitPayment.getAccounts().indexOf(acc.getIban()));
+            amount *= app.getExchangeRates().getRate(splitPayment.getCurrency(), acc.getCurrency());
+            double ronAmount = amount * app.getExchangeRates().getRate(splitPayment.getCurrency(), Utils.DEFAULT_CURRENCY);
+            amount *= getCommission(ronAmount);
+            acc.setBalance(acc.getBalance() - amount);
+            ArrayNode accountsArray = splitPayment.getAccountsArray();
+            ArrayNode amountsArray = splitPayment.getAmountsArray();
+            ObjectNode node = acc.addSplitTransaction(accountsArray, splitPayment.getCurrency(),
+                    splitPayment.getAmount(), splitPayment.getTimestamp(), amountsArray, splitPayment.getSplitPaymentType());
+            getCommandHistory().addToHistory(node);
+        } else {
+            ObjectNode node = JsonNodeFactory.instance.objectNode();
+            if (splitPayment.getSplitPaymentType().equals("custom")) {
+                node.set("amountForUsers", splitPayment.getAmountsArray());
+            } else {
+                node.put("amount", splitPayment.getAmountForUser().getFirst());
+            }
+            node.put("currency", splitPayment.getCurrency());
+            String formatted = String.format("%.2f", splitPayment.getAmount());
+            node.put("description", "Split payment of " + formatted + " " + splitPayment.getCurrency());
+            node.put("error",
+                    "Account " + splitPayment.getAccountToBlame() + " has insufficient funds for a split payment.");
+            node.set("involvedAccounts", splitPayment.getAccountsArray());
+            node.put("splitPaymentType", splitPayment.getSplitPaymentType());
+            node.put("timestamp", splitPayment.getTimestamp());
+            acc.addToReport(node);
+            getCommandHistory().addToHistory(node);
+        }
+    }
+
+    //trebuie gasit primul la care inca nu a acceptat/refuzat
+
+    public void handleSplitPayment(int timestamp, SplitPaymentStatus status) {
+        for (SplitPaymentInfo splitPaymentInfo : splitPaymentQueue) {
+            if (splitPaymentInfo == null) {
+                break;
+            }
+            // cand gasesc primul care e pending, il refuz si tre sa il sterg de la toata lumea
+            if (splitPaymentInfo.getStatus() == SplitPaymentStatus.PENDING) {
+                SplitPayment splitPayment = splitPaymentInfo.getSplitPayment();
+                splitPayment.updatePaymentStatus(splitPaymentInfo.getAccount(), status);
+                splitPaymentInfo.setStatus(status);
+                break;
+            }
         }
     }
 }

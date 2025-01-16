@@ -2,13 +2,11 @@ package org.poo.commands;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
-import org.poo.main.User;
 import org.poo.main.accounts.Account;
 import org.poo.main.Application;
 import org.poo.main.accounts.BusinessAccount;
 import org.poo.main.accounts.ClassicAccount;
 import org.poo.main.accounts.SavingsAccount;
-import org.poo.utils.Search;
 
 /**
  * Represents a command to add a new account for a specific user.

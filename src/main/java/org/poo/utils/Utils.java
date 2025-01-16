@@ -9,8 +9,11 @@ public final class Utils {
 
     private static final int IBAN_SEED = 1;
     private static final int CARD_SEED = 2;
+    private static final int SPLIT_PAYMENT_SEED = 3;
+
     private static final int DIGIT_BOUND = 10;
     private static final int DIGIT_GENERATION = 16;
+    private static final int DIGIT_SPLIT = 1000;
     private static final String RO_STR = "RO";
     private static final String POO_STR = "POOB";
     public static final String DEFAULT_CURRENCY = "RON";
@@ -21,6 +24,7 @@ public final class Utils {
 
     private static Random ibanRandom = new Random(IBAN_SEED);
     private static Random cardRandom = new Random(CARD_SEED);
+    private static Random splitPaymentRandom = new Random(SPLIT_PAYMENT_SEED);
 
     /**
      * Utility method for generating an IBAN code.
@@ -55,12 +59,17 @@ public final class Utils {
         return sb.toString();
     }
 
+    public static int generateSplitPayment() {
+        return splitPaymentRandom.nextInt(DIGIT_SPLIT);
+    }
+
     /**
      * Resets the seeds between runs.
      */
     public static void resetRandom() {
         ibanRandom = new Random(IBAN_SEED);
         cardRandom = new Random(CARD_SEED);
+        splitPaymentRandom = new Random(SPLIT_PAYMENT_SEED);
     }
 
     public static double makeAproximation(double value) {

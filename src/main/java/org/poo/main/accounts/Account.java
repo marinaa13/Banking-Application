@@ -11,10 +11,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
 
-import org.poo.main.Card;
+import org.poo.main.Commerciant;
+import org.poo.main.ServicePlan;
+import org.poo.main.cardTypes.Card;
 import org.poo.main.ExchangeRatesGraph;
 import org.poo.main.moneyback.CashbackService;
-import org.poo.main.User;
+import org.poo.main.userTypes.User;
 import org.poo.utils.Errors;
 import org.poo.utils.Utils;
 
@@ -111,11 +113,12 @@ public class Account {
         if (card.getStatus().equals("frozen")) {
             return Errors.frozenCard(timestamp);
         }
-        amount *= exchangeRates.getRate(payCurrency, card.getAccountBelonging().getCurrency());
-        double ronAmount = amount * exchangeRates.getRate(payCurrency, "RON");
-        amount *= getOwner().getCommission(ronAmount);
 
-        if (balance < amount) {
+        amount *= exchangeRates.getRate(payCurrency, card.getAccountBelonging().getCurrency());
+        double ronAmount = amount * exchangeRates.getRate(currency, Utils.DEFAULT_CURRENCY);
+        double newAmount = amount * getOwner().getCommission(ronAmount);
+
+        if (balance < newAmount) {
             return Errors.insufficientFunds(timestamp);
         }
 
@@ -126,18 +129,19 @@ public class Account {
         cashbackService.addTransactionToCommerciant(commerciant, ronAmount);
 
         //verific cashbackul pt amount, care poate fi primit si pt tranzactia curenta
-        cashback += cashbackService.giveCashbackForAmount(commerciant, amount - cashback, getOwner().getPlan());
+        double newCashback = cashbackService.giveCashbackForAmount(commerciant, ronAmount - cashback, getOwner().getPlan());
+        newCashback = newCashback * exchangeRates.getRate(Utils.DEFAULT_CURRENCY, currency);
+        cashback += newCashback;
 
-        balance -= (amount - cashback);
-        balance = Utils.makeAproximation(balance);
+        balance -= (newAmount - cashback);
         node.put("timestamp", timestamp);
         node.put("description", "Card payment");
-        node.put("amount", amount / getOwner().getCommission(ronAmount));
+        node.put("amount", amount);
         node.put("commerciant", commerciant);
 
         card.getAccountBelonging().addToReport(node);
         card.getAccountBelonging().addToSpendingsReport(node);
-
+        checkForGold(newAmount, exchangeRates);
         return node;
     }
 
@@ -208,14 +212,15 @@ public class Account {
      * @param timestamp   the timestamp of the transaction
      * @return an {@link ObjectNode} representing the split transaction
      */
-    public ObjectNode addSplitTransaction(final ArrayNode array, final String payCurrency, final double amount, final int timestamp) {
+    public ObjectNode addSplitTransaction(final ArrayNode array, final String payCurrency, final double amount, final int timestamp, final ArrayNode amountsArray, final String type) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("timestamp", timestamp);
+        node.set("amountForUsers", amountsArray);
+        node.put("currency", payCurrency);
         String formatted = String.format("%.2f", amount);
         node.put("description", "Split payment of " + formatted + " " + payCurrency);
-        node.put("currency", payCurrency);
-        node.put("amount", amount / array.size());
         node.set("involvedAccounts", array);
+        node.put("splitPaymentType", type);
+        node.put("timestamp", timestamp);
         return node;
     }
 
@@ -368,7 +373,7 @@ public class Account {
         double newAmount = amount * getOwner().getCommission(amount) * exchangeRates.getRate(Utils.DEFAULT_CURRENCY, card.getAccountBelonging().getCurrency());
 
         if (balance < newAmount) {
-            return Errors.frozenCard(timestamp);
+            return Errors.insufficientFunds(timestamp);
         }
 
         balance -= newAmount;
@@ -384,5 +389,45 @@ public class Account {
         return null;
     }
 
+    public void sendMoneyToCommerciant(Double amount, ExchangeRatesGraph exchangeRates, Commerciant comm, String description, int timestamp) {
+        double ronAmount = amount * exchangeRates.getRate(currency, Utils.DEFAULT_CURRENCY);
+        double commission = getOwner().getCommission(ronAmount);
+        double newAmount = amount * commission;
 
+        if (balance < newAmount) {
+            ObjectNode node = Errors.insufficientFunds(timestamp);
+            getOwner().getCommandHistory().addToHistory(node);
+            addToReport(node);
+            return;
+        }
+
+        // verific daca am vreun cashback de dat pt tranzactii, care poate fi primit de orice comerciant
+        double cashback = cashbackService.giveCashbackForTransactions(comm.getName(), amount);
+
+        // adaug tranzactia, indiferent ce tip e
+        cashbackService.addTransactionToCommerciant(comm.getName(), ronAmount);
+
+        //verific cashbackul pt amount, care poate fi primit si pt tranzactia curenta
+        double newCashback = cashbackService.giveCashbackForAmount(comm.getName(), ronAmount - cashback, getOwner().getPlan());
+        newCashback = newCashback * exchangeRates.getRate(Utils.DEFAULT_CURRENCY, currency);
+        cashback += newCashback;
+
+        balance -= (newAmount - cashback);
+        ObjectNode node = addTransaction(iban, comm.getAccount(), amount, description, timestamp);
+        owner.getCommandHistory().addToHistory(node);
+        checkForGold(newAmount, exchangeRates);
+        addToReport(node);
+    }
+
+    public void checkForGold(final double amount, ExchangeRatesGraph exchangeRates) {
+        double ronAmount = amount * exchangeRates.getRate(currency, Utils.DEFAULT_CURRENCY);
+        if (ronAmount > 500) {
+            if (getOwner().getPlan() == ServicePlan.SILVER) {
+                getOwner().setNumPayments(getOwner().getNumPayments() + 1);
+                if (getOwner().getNumPayments() >= 5) {
+                    getOwner().setPlan(ServicePlan.GOLD);
+                }
+            }
+        }
+    }
 }

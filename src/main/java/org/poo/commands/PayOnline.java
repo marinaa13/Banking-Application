@@ -53,6 +53,8 @@ public class PayOnline implements Command {
      */
     @Override
     public ObjectNode execute() {
+        if (amount == 0)
+            return null;
         ObjectNode inner = app.payOnline(cardNumber, amount, currency, timestamp, commerciant);
         if (inner != null) {
             return Output.getCommand("payOnline", inner, timestamp);

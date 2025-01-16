@@ -3,8 +3,8 @@ package org.poo.commands;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
-import org.poo.main.Card;
-import org.poo.main.OneTimeCard;
+import org.poo.main.cardTypes.Card;
+import org.poo.main.cardTypes.OneTimeCard;
 
 /**
  * Represents a command to create a new card for a specific user.

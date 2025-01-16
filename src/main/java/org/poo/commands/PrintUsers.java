@@ -1,11 +1,9 @@
 package org.poo.commands;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
-import org.poo.main.User;
 import org.poo.utils.Output;
 
 /**

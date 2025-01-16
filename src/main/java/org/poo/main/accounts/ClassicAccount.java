@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
-import org.poo.main.Card;
+import org.poo.main.cardTypes.Card;
 
 public class ClassicAccount extends Account{
     public ClassicAccount(CommandInput input) {
@@ -15,7 +15,7 @@ public class ClassicAccount extends Account{
     public ObjectNode getJson() {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("IBAN", getIban());
-        node.put("balance", Math.round(getBalance() * 100.0) / 100.0);
+        node.put("balance", getBalance());
         node.put("currency", getCurrency());
         node.put("type", "classic");
 

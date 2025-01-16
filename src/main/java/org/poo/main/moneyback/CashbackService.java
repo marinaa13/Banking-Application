@@ -54,12 +54,9 @@ public class CashbackService {
         if (c.getCashbackStrategy().equals("nrOfTransactions")) {
             incrementTransactions(commerciant, amount);
             checkIfCashbackToBeReceivedTransactions(c);
-            return;
         } else if (c.getCashbackStrategy().equals("spendingThreshold")) {
             incrementAmount(commerciant, amount);
-            return;
         }
-
     }
 
     public void checkIfCashbackToBeReceivedTransactions(Commerciant commerciant) {

@@ -47,6 +47,8 @@ public class CommandFactory {
             case "upgradePlan" -> new UpgradePlan(app, input);
             case "withdrawSavings" -> new WithdrawSavings(app, input);
             case "cashWithdrawal" -> new CashWithdrawal(app, input);
+            case "acceptSplitPayment" -> new AcceptSplitPayment(app, input);
+            case "rejectSplitPayment" -> new RejectSplitPayment(app, input);
             default -> new Default();
         };
     }

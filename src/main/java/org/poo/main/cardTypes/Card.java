@@ -1,4 +1,4 @@
-package org.poo.main;
+package org.poo.main.cardTypes;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;

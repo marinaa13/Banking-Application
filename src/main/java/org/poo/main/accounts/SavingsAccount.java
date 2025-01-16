@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Getter;
 import lombok.Setter;
 import org.poo.fileio.CommandInput;
-import org.poo.main.Card;
+import org.poo.main.cardTypes.Card;
 
 /**
  * Represents a savings account that extends from the {@link Account} class.
@@ -38,7 +38,7 @@ public class SavingsAccount extends Account {
     public ObjectNode getJson() {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("IBAN", getIban());
-        node.put("balance", Math.round(getBalance() * 100.0) / 100.0);
+        node.put("balance", getBalance());
         node.put("currency", getCurrency());
         node.put("type", "savings");
 
