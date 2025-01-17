@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
 
+import org.poo.main.Application;
 import org.poo.main.Commerciant;
 import org.poo.main.ServicePlan;
 import org.poo.main.cardTypes.Card;
@@ -27,7 +28,7 @@ import org.poo.utils.Utils;
  */
 @Getter
 @Setter
-public class Account {
+public abstract class Account {
     private final String iban;
     private String alias = " ";
     private double balance;
@@ -73,7 +74,7 @@ public class Account {
      *
      * @param card the card to be added to the account
      */
-    public void addCard(final Card card) {
+    public void addCard(final Card card, String email) {
         cards.add(card);
         card.setAccountBelonging(this);
     }
@@ -108,7 +109,7 @@ public class Account {
      */
     public ObjectNode makePayment(final Card card, double amount, final String payCurrency,
                                   final ExchangeRatesGraph exchangeRates, final int timestamp,
-                                  final String commerciant) {
+                                  final String commerciant, String email) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (card.getStatus().equals("frozen")) {
             return Errors.frozenCard(timestamp);
@@ -120,6 +121,15 @@ public class Account {
 
         if (balance < newAmount) {
             return Errors.insufficientFunds(timestamp);
+        }
+
+        if (card.getAccountBelonging().isBusinessAccount()) {
+            BusinessAccount businessAccount = (BusinessAccount) card.getAccountBelonging();
+            if (businessAccount.isEmployee(email)) {
+                if (businessAccount.getSpendingLimit() < newAmount) {
+                    return null;
+                }
+            }
         }
 
         // verific daca am vreun cashback de dat pt tranzactii, care poate fi primit de orice comerciant
@@ -157,7 +167,10 @@ public class Account {
     public void sendMoney(final String toAccount, final double amount, final double commission, final String description, final int timestamp) {
         balance -= amount * commission;
         ObjectNode node = addTransaction(iban, toAccount, amount, description, timestamp);
-        owner.getCommandHistory().addToHistory(node);
+        // ????
+        if (owner != null) {
+            owner.getCommandHistory().addToHistory(node);
+        }
         addToReport(node);
     }
 
@@ -352,6 +365,10 @@ public class Account {
         return false;
     }
 
+    public boolean isBusinessAccount() {
+        return false;
+    }
+
     public void deductFee(double amount) throws Exception {
         if (balance < amount) {
             throw new Exception("Insufficient funds");
@@ -414,8 +431,11 @@ public class Account {
 
         balance -= (newAmount - cashback);
         ObjectNode node = addTransaction(iban, comm.getAccount(), amount, description, timestamp);
-        owner.getCommandHistory().addToHistory(node);
-        checkForGold(newAmount, exchangeRates);
+        // ???
+        if (owner != null) {
+            owner.getCommandHistory().addToHistory(node);
+        }
+                checkForGold(newAmount, exchangeRates);
         addToReport(node);
     }
 
@@ -429,5 +449,26 @@ public class Account {
                 }
             }
         }
+    }
+
+    public void addUser(String email, String owner, User user) {
+    }
+
+    public void addNewBusinessAssociate(String email, String role, int timestamp, Application application) {
+    }
+
+    public ObjectNode changeSpendingLimit(double amount, String email, int timestamp) {
+        return null;
+    }
+
+    public void changeDepositLimit(double amount, String email, int timestamp) {
+    }
+
+    public ObjectNode getBusinessReport(int startTimestamp, int endTimestamp, String type) {
+        throw new UnsupportedOperationException("Account is not of type business");
+    }
+
+    public void addFunds(double amount, String email) {
+        balance += amount;
     }
 }

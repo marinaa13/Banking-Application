@@ -41,7 +41,7 @@ public class AddAccount implements Command {
         } else if (input.getAccountType().equals("classic")) {
             this.account = new ClassicAccount(input);
         } else {
-            this.account = new BusinessAccount(input);
+            this.account = new BusinessAccount(input, app);
         }
     }
 

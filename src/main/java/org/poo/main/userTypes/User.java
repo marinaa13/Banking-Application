@@ -99,6 +99,10 @@ public class User implements Observer {
         if (account.isClassicAccount()) {
             hasClassicAccount = true;
         }
+
+        if (account.isBusinessAccount()) {
+            account.addUser(email, "owner", this);
+        }
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
         node.put("description", "New account created");
@@ -110,20 +114,18 @@ public class User implements Observer {
         commandHistory.addToHistory(node);
     }
 
-    public void addAccount(final BusinessAccount account, final int timestamp) {
+    public void addBussinessAccount(final BusinessAccount account) {
         accounts.add(account);
-        if (account.isClassicAccount()) {
-            hasClassicAccount = true;
-        }
         ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("timestamp", timestamp);
-        node.put("description", "New account created");
-
-        // Add account report if it's not the first account
-        if (accounts.size() > 1) {
-            account.addToReport(node);
-        }
-        commandHistory.addToHistory(node);
+        //NU STIU UNDE ADAUG ASTA
+//        node.put("timestamp", timestamp);
+//        node.put("description", "New account created");
+//
+//        // Add account report if it's not the first account
+//        if (accounts.size() > 1) {
+//            account.addToReport(node);
+//        }
+//        commandHistory.addToHistory(node);
     }
 
     /**
@@ -140,6 +142,16 @@ public class User implements Observer {
                 if (a.getBalance() != 0) {
                     break;
                 } else {
+                    if (a.isBusinessAccount()) {
+                        if (email.equals(a.getOwner().getEmail())) {
+                            // daca e owner, poate sa stearga contul - trebuie sters de la toata lumea
+                            app.removeAccount(a);
+                            return 1;
+                        } else {
+                            //probabi; cv eroare
+                            return 0;
+                        }
+                    }
                     accounts.remove(a);
                     return 1;
                 }
@@ -171,7 +183,7 @@ public class User implements Observer {
 
         for (Account acc : accounts) {
             if (acc.getIban().equals(card.getAccount())) {
-                acc.addCard(card);
+                acc.addCard(card, email);
                 acc.addToReport(node);
             }
         }
@@ -346,4 +358,6 @@ public class User implements Observer {
             }
         }
     }
+
+
 }

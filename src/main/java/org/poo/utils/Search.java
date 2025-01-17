@@ -61,6 +61,15 @@ public final class Search {
         return null;
     }
 
+    public static Commerciant getCommerciantByName(final List<Commerciant> commerciants, final String name) {
+        for (Commerciant commerciant : commerciants) {
+            if (commerciant.getName().equals(name)) {
+                return commerciant;
+            }
+        }
+        return null;
+    }
+
     /**
      * Retrieves an {@link Account} by its alias from a list of users.
      *

@@ -20,6 +20,7 @@ public class PayOnline implements Command {
     private final String currency;
     private String commerciant;
     private final int timestamp;
+    private final String email;
 
     /**
      * Constructs a {@link PayOnline} command using the provided
@@ -36,6 +37,7 @@ public class PayOnline implements Command {
         currency = input.getCurrency();
         timestamp = input.getTimestamp();
         commerciant = input.getCommerciant();
+        email = input.getEmail();
     }
 
     /**
@@ -55,7 +57,7 @@ public class PayOnline implements Command {
     public ObjectNode execute() {
         if (amount == 0)
             return null;
-        ObjectNode inner = app.payOnline(cardNumber, amount, currency, timestamp, commerciant);
+        ObjectNode inner = app.payOnline(cardNumber, amount, currency, timestamp, commerciant, email);
         if (inner != null) {
             return Output.getCommand("payOnline", inner, timestamp);
         }

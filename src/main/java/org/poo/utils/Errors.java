@@ -114,4 +114,18 @@ public final class Errors {
         node.put("description", "One of the accounts is invalid");
         return node;
     }
+
+    public static ObjectNode commerciantNotFound(final int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "The commerciant is not found");
+        return node;
+    }
+
+    public static ObjectNode changeSpendLimitError(final int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "You must be owner in order to change spending limit.");
+        return node;
+    }
 }

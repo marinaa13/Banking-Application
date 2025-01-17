@@ -14,6 +14,7 @@ public class AddFunds implements Command {
     private final Application app;
     private final String account;
     private final double amount;
+    private final String email;
 
     /**
      * Constructs an {@link AddFunds} command using the provided
@@ -27,10 +28,11 @@ public class AddFunds implements Command {
         this.app = app;
         this.account = input.getAccount();
         this.amount = input.getAmount();
+        email = input.getEmail();
     }
 
     /**
-     * Executes the add funds command by calling the {@link Application#addFunds(String, double)}
+     * Executes the add funds command by calling the {@link Application#addFunds(String, double, String)}
      * method to add the specified amount to the account.
      * <p>
      * The command does not return any specific output,
@@ -41,7 +43,7 @@ public class AddFunds implements Command {
      */
     @Override
     public ObjectNode execute() {
-        app.addFunds(account, amount);
+        app.addFunds(account, amount, email);
         return null;
     }
 }

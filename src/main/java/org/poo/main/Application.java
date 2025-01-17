@@ -9,6 +9,7 @@ import lombok.Setter;
 import org.poo.commands.CommandInvoker;
 import org.poo.fileio.ObjectInput;
 import org.poo.main.accounts.Account;
+import org.poo.main.accounts.BusinessAccount;
 import org.poo.main.cardTypes.Card;
 import org.poo.main.moneyback.CashbackService;
 import org.poo.main.splitPayment.SplitPayment;
@@ -19,6 +20,7 @@ import org.poo.utils.Errors;
 import org.poo.utils.Utils;
 import org.poo.utils.Search;
 
+import javax.swing.plaf.nimbus.NimbusStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -192,10 +194,10 @@ public class Application {
      * @param account the IBAN of the account to which funds will be added
      * @param amount the amount to be added
      */
-    public void addFunds(final String account, final double amount) {
+    public void addFunds(final String account, final double amount, final String email) {
         Account acc = Search.getAccountByIBAN(users, account);
         if (acc != null) {
-            acc.setBalance(acc.getBalance() + amount);
+            acc.addFunds(amount, email);
         }
     }
 
@@ -223,14 +225,18 @@ public class Application {
      * @return an {@link ObjectNode} representing the result of the payment
      */
     public ObjectNode payOnline(final String cardNumber, double amount, final String currency,
-                                final int timestamp, final String commerciant) {
+                                final int timestamp, final String commerciant, String email) {
         Card card = Search.getCardByNumber(users, cardNumber);
         if (card == null) {
             return Errors.cardNotFound(timestamp);
         }
 
+        if (Search.getCommerciantByName(commerciants, commerciant) == null) {
+            return Errors.commerciantNotFound(timestamp);
+        }
+
         ObjectNode node = card.getAccountBelonging()
-                .makePayment(card, amount, currency, exchangeRates, timestamp, commerciant);
+                .makePayment(card, amount, currency, exchangeRates, timestamp, commerciant, email);
 
         card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(node);
         if (node.has("amount")) {
@@ -555,5 +561,55 @@ public class Application {
         }
         user.handleSplitPayment(timestamp, SplitPaymentStatus.REJECTED);
         return null;
+    }
+
+    public void addNewBussinessAssociate(String account, String role, String email, int timestamp) {
+        Account acc = Search.getAccountByIBAN(users, account);
+        if (acc == null) {
+            return;
+        }
+        acc.addNewBusinessAssociate(email, role, timestamp, this);
+    }
+
+    public ObjectNode changeSpendingLimit(String email, String account, double amount, int timestamp) {
+        User user = Search.getUserByEmail(users, email);
+        if (user == null) {
+            return Errors.userNotFound(timestamp);
+        }
+        Account acc = Search.getAccountByIBAN(users, account);
+        return acc.changeSpendingLimit(amount, email, timestamp);
+    }
+
+    public void changeDepositLimit(String email, String account, double amount, int timestamp) {
+        User user = Search.getUserByEmail(users, email);
+        if (user == null) {
+            return;         //user not found?
+        }
+        Account acc = Search.getAccountByIBAN(users, account);
+        acc.changeDepositLimit(amount, email, timestamp);
+    }
+
+    public ObjectNode businessReport(String type, int startTimestamp, int endTimestamp, String account, int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        Account acc = Search.getAccountByIBAN(users, account);
+        if (acc == null) {
+            return Errors.accountNotFound(timestamp);
+        }
+        try {
+            node = acc.getBusinessReport(startTimestamp, endTimestamp, type);
+
+        } catch (UnsupportedOperationException e) {
+            node.put("error", "Account is not of type business");
+        }
+        return node;
+    }
+
+    public void removeAccount(Account a) {
+        for (User u : users) {
+            if (u.getAccounts().contains(a)) {
+                u.getAccounts().remove(a);
+                return;
+            }
+        }
     }
 }
