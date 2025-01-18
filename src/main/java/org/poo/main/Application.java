@@ -238,6 +238,10 @@ public class Application {
         ObjectNode node = card.getAccountBelonging()
                 .makePayment(card, amount, currency, exchangeRates, timestamp, commerciant, email);
 
+        if (node.equals(Errors.cardNotFound(timestamp))) {
+            return Errors.cardNotFound(timestamp);
+        }
+
         card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(node);
         if (node.has("amount")) {
             card.madePayment(timestamp);
@@ -256,6 +260,8 @@ public class Application {
      */
     public ObjectNode sendMoney(final String fromAccount, final String toAccount, double amount,
                           final String description, final int timestamp) {
+        if (!isIBAN(fromAccount))
+            return null;
         Account from = Search.getAccountByIBAN(users, fromAccount);
         Account to = isIBAN(toAccount) ? Search.getAccountByIBAN(users, toAccount)
                                         : Search.getAccountByAlias(users, toAccount);

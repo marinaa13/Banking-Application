@@ -15,10 +15,7 @@ import org.poo.utils.Errors;
 import org.poo.utils.Search;
 import org.poo.utils.Utils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Getter @Setter
 public class BusinessAccount extends Account {
@@ -38,8 +35,8 @@ public class BusinessAccount extends Account {
      */
     public BusinessAccount(CommandInput input, Application app) {
         super(input);
-        managers = new HashMap<>();
-        employees = new HashMap<>();
+        managers = new LinkedHashMap<>();
+        employees = new LinkedHashMap<>();
         commerciants = new ArrayList<>();
         depositLimit = app.getExchangeRates().getRate(Utils.DEFAULT_CURRENCY, input.getCurrency()) * 500;
         spendingLimit = app.getExchangeRates().getRate(Utils.DEFAULT_CURRENCY, input.getCurrency()) * 500;
@@ -121,12 +118,12 @@ public class BusinessAccount extends Account {
         for (String commerciant : commerciants) {
             ObjectNode node = JsonNodeFactory.instance.objectNode();
             node.put("commerciant", commerciant);
-            node.put("totalReceived", getTotalCommerciant(startTimestamp, endTimestamp, commerciant));
+            node.put("total received", getTotalCommerciant(startTimestamp, endTimestamp, commerciant));
             node.set("managers", getManagersForCommerciant(commerciant));
             node.set("employees", getEmployeesForCommerciant(commerciant));
             array.add(node);
         }
-        return array;
+        return sortArrayNodeByStringField(array, "commerciant");
     }
 
     public ArrayNode getManagersArray(int startTimestamp, int endTimestamp){
@@ -145,7 +142,7 @@ public class BusinessAccount extends Account {
         return array;
     }
 
-    public ObjectNode getEmployeesForCommerciant(String commerciant) {
+    public ArrayNode getEmployeesForCommerciant(String commerciant) {
         ArrayNode array = JsonNodeFactory.instance.arrayNode();
         for (BusinessAccUser user : employees.values()) {
             for (Map.Entry<Integer, Transaction> entry : user.getTransactions().entrySet()) {
@@ -154,12 +151,10 @@ public class BusinessAccount extends Account {
                 }
             }
         }
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.set("employees", array);
-        return node;
+        return array;
     }
 
-    public ObjectNode getManagersForCommerciant(String commerciant) {
+    public ArrayNode getManagersForCommerciant(String commerciant) {
         ArrayNode array = JsonNodeFactory.instance.arrayNode();
         for (BusinessAccUser user : managers.values()) {
             for (Map.Entry<Integer, Transaction> entry : user.getTransactions().entrySet()) {
@@ -168,9 +163,7 @@ public class BusinessAccount extends Account {
                 }
             }
         }
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.set("managers", array);
-        return node;
+        return array;
     }
 
     @Override
@@ -185,6 +178,10 @@ public class BusinessAccount extends Account {
 
     @Override
     public void addFunds(final double amount, final String email, final int timestamp) {
+        if (!employees.containsKey(email) && !managers.containsKey(email) && !getOwner().getEmail().equals(email)) {
+            return;
+        }
+
         if (employees.containsKey(email)) {
             if (amount > depositLimit)
                 return;
@@ -202,12 +199,14 @@ public class BusinessAccount extends Account {
                                   final ExchangeRatesGraph exchangeRates, final int timestamp,
                                   final String commerciant, String email) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
+        if (!employees.containsKey(email) && !managers.containsKey(email) && !getOwner().getEmail().equals(email)) {
+            return Errors.cardNotFound(timestamp);
+        }
         if (card.getStatus().equals("frozen")) {
             return Errors.frozenCard(timestamp);
         }
 
         amount *= exchangeRates.getRate(payCurrency, card.getAccountBelonging().getCurrency());
-        addSpending(email, amount, timestamp);
         double ronAmount = amount * exchangeRates.getRate(getCurrency(), Utils.DEFAULT_CURRENCY);
         double newAmount = amount * getOwner().getCommission(ronAmount);
 
@@ -245,6 +244,7 @@ public class BusinessAccount extends Account {
         if (!commerciants.contains(commerciant)) {
             commerciants.add(commerciant);
         }
+        addSpending(email, amount, timestamp, commerciant);
 
         return node;
     }
@@ -253,8 +253,8 @@ public class BusinessAccount extends Account {
         return employees.containsKey(email);
     }
 
-    public void addSpending(String email, double amount, int timestamp) {
-        Transaction transaction = new Transaction("commerciant", amount);
+    public void addSpending(String email, double amount, int timestamp, final String commerciant) {
+        Transaction transaction = new Transaction(commerciant, amount);
         if (employees.containsKey(email)) {
             employees.get(email).getTransactions().put(timestamp, transaction);
         } else if (managers.containsKey(email)) {
@@ -311,5 +311,20 @@ public class BusinessAccount extends Account {
         }
         node.set("cards", array);
         return node;
+    }
+
+    public static ArrayNode sortArrayNodeByStringField(ArrayNode arrayNode, String fieldName) {
+        // Convert ArrayNode to a List<JsonNode>
+        List<JsonNode> nodes = new ArrayList<>();
+        arrayNode.forEach(nodes::add);
+
+        // Sort the list by the specified string field
+        nodes.sort(Comparator.comparing(node -> node.get(fieldName).asText()));
+
+        // Create a new sorted ArrayNode
+        ArrayNode sortedArrayNode = JsonNodeFactory.instance.arrayNode();
+        nodes.forEach(sortedArrayNode::add);
+
+        return sortedArrayNode;
     }
 }
