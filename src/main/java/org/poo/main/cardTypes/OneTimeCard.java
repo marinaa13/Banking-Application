@@ -21,6 +21,10 @@ public class OneTimeCard extends Card {
         super(input);
     }
 
+    public OneTimeCard(final String account) {
+        super(account);
+    }
+
     /**
      * Processes a payment made using the one-time card.
      * After the payment, the card is deleted from the account, and a new card
@@ -32,7 +36,7 @@ public class OneTimeCard extends Card {
     public void madePayment(final int timestamp) {
         getAccountBelonging().deleteCard(getCardNumber(), timestamp);
 
-        Card card = new Card(getAccount());
+        Card card = new OneTimeCard(getAccount());
         card.setCardNumber(Utils.generateCardNumber());
 
         getAccountBelonging().getOwner().addCard(card, timestamp);

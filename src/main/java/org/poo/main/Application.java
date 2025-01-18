@@ -194,10 +194,10 @@ public class Application {
      * @param account the IBAN of the account to which funds will be added
      * @param amount the amount to be added
      */
-    public void addFunds(final String account, final double amount, final String email) {
+    public void addFunds(final String account, final double amount, final String email, final int timestamp) {
         Account acc = Search.getAccountByIBAN(users, account);
         if (acc != null) {
-            acc.addFunds(amount, email);
+            acc.addFunds(amount, email, timestamp);
         }
     }
 
@@ -377,6 +377,7 @@ public class Application {
             node.put("description", "Interest rate of the account changed to " + newInterestRate);
             node.put("timestamp", timestamp);
             acc.getOwner().getCommandHistory().addToHistory(node);
+            acc.addToReport(node);
         } catch (UnsupportedOperationException e) {
             return Errors.notSavingsAccount(timestamp);
         }
@@ -399,6 +400,7 @@ public class Application {
             ObjectNode node = acc.addInterest();
             node.put("timestamp", timestamp);
             acc.getOwner().getCommandHistory().addToHistory(node);
+            acc.addToReport(node);
         } catch (UnsupportedOperationException e) {
             return Errors.notSavingsAccount(timestamp);
         }
@@ -512,13 +514,14 @@ public class Application {
         acc.getOwner().withdrawSavings(acc, amount, currency, timestamp);
     }
 
-    public void upgradePlan(String account, String newPlanType, int timestamp) {
+    public ObjectNode upgradePlan(String account, String newPlanType, int timestamp) {
        Account acc = Search.getAccountByIBAN(users, account);
        if (acc == null) {
-           return;
+           return Errors.accountNotFound(timestamp);
        }
        double rate = exchangeRates.getRate(Utils.DEFAULT_CURRENCY, acc.getCurrency());
        acc.getOwner().upgradePlan(acc, ServicePlan.valueOf(newPlanType.toUpperCase()), rate, timestamp);
+         return null;
     }
 
     public ObjectNode cashWithdrawal(String cardNumber, double amount, String email, String location, int timestamp) {

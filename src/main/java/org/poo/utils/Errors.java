@@ -128,4 +128,18 @@ public final class Errors {
         node.put("description", "You must be owner in order to change spending limit.");
         return node;
     }
+
+    public static ObjectNode downgradePlan(final int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "You cannot downgrade yor plan.");
+        return node;
+    }
+
+    public static ObjectNode alreadyOwnedPlan(final int timestamp, String plan) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "The user already has the " + plan + " plan.");
+        return node;
+    }
 }

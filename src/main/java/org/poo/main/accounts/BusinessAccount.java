@@ -1,5 +1,6 @@
 package org.poo.main.accounts;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -14,7 +15,9 @@ import org.poo.utils.Errors;
 import org.poo.utils.Search;
 import org.poo.utils.Utils;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Getter @Setter
@@ -23,6 +26,7 @@ public class BusinessAccount extends Account {
     private Map<String, BusinessAccUser> employees;
     private double spendingLimit;
     private double depositLimit;
+    private List<String> commerciants;
 
     /**
      * Constructs an {@link Account} using the provided {@link CommandInput}.
@@ -36,6 +40,7 @@ public class BusinessAccount extends Account {
         super(input);
         managers = new HashMap<>();
         employees = new HashMap<>();
+        commerciants = new ArrayList<>();
         depositLimit = app.getExchangeRates().getRate(Utils.DEFAULT_CURRENCY, input.getCurrency()) * 500;
         spendingLimit = app.getExchangeRates().getRate(Utils.DEFAULT_CURRENCY, input.getCurrency()) * 500;
     }
@@ -101,28 +106,71 @@ public class BusinessAccount extends Account {
         node.put("deposit limit", getDepositLimit());
         node.put("statistics type", type);
         if (type.equals("transaction")) {
-            node.set("managers", getManagersArray());
-            node.set("employees", getEmployeesArray());
+            node.set("managers", getManagersArray(startTimestamp, endTimestamp));
+            node.set("employees", getEmployeesArray(startTimestamp, endTimestamp));
+            node.put("total spent", getTotalSpent(startTimestamp, endTimestamp));
+            node.put("total deposited", getTotalDeposited(startTimestamp, endTimestamp));
+        } else {
+            node.set("commerciants", getCommerciantsArray(startTimestamp, endTimestamp));
         }
-        node.put("total spent", getTotalSpent());
-        node.put("total deposited", getTotalDeposited());
         return node;
     }
 
-    public ArrayNode getManagersArray(){
+    private JsonNode getCommerciantsArray(int startTimestamp, int endTimestamp) {
         ArrayNode array = JsonNodeFactory.instance.arrayNode();
-        for (BusinessAccUser user : managers.values()) {
-            array.add(user.getJson());
+        for (String commerciant : commerciants) {
+            ObjectNode node = JsonNodeFactory.instance.objectNode();
+            node.put("commerciant", commerciant);
+            node.put("totalReceived", getTotalCommerciant(startTimestamp, endTimestamp, commerciant));
+            node.set("managers", getManagersForCommerciant(commerciant));
+            node.set("employees", getEmployeesForCommerciant(commerciant));
+            array.add(node);
         }
         return array;
     }
 
-    public ArrayNode getEmployeesArray(){
+    public ArrayNode getManagersArray(int startTimestamp, int endTimestamp){
         ArrayNode array = JsonNodeFactory.instance.arrayNode();
-        for (BusinessAccUser user : employees.values()) {
-            array.add(user.getJson());
+        for (BusinessAccUser user : managers.values()) {
+            array.add(user.getJson(startTimestamp, endTimestamp));
         }
         return array;
+    }
+
+    public ArrayNode getEmployeesArray(int startTimestamp, int endTimestamp){
+        ArrayNode array = JsonNodeFactory.instance.arrayNode();
+        for (BusinessAccUser user : employees.values()) {
+            array.add(user.getJson(startTimestamp, endTimestamp));
+        }
+        return array;
+    }
+
+    public ObjectNode getEmployeesForCommerciant(String commerciant) {
+        ArrayNode array = JsonNodeFactory.instance.arrayNode();
+        for (BusinessAccUser user : employees.values()) {
+            for (Map.Entry<Integer, Transaction> entry : user.getTransactions().entrySet()) {
+                if (entry.getValue().getCommerciant().equals(commerciant)) {
+                    array.add(user.getName());
+                }
+            }
+        }
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.set("employees", array);
+        return node;
+    }
+
+    public ObjectNode getManagersForCommerciant(String commerciant) {
+        ArrayNode array = JsonNodeFactory.instance.arrayNode();
+        for (BusinessAccUser user : managers.values()) {
+            for (Map.Entry<Integer, Transaction> entry : user.getTransactions().entrySet()) {
+                if (entry.getValue().getCommerciant().equals(commerciant)) {
+                    array.add(user.getName());
+                }
+            }
+        }
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.set("managers", array);
+        return node;
     }
 
     @Override
@@ -136,16 +184,16 @@ public class BusinessAccount extends Account {
     }
 
     @Override
-    public void addFunds(final double amount, final String email) {
+    public void addFunds(final double amount, final String email, final int timestamp) {
         if (employees.containsKey(email)) {
             if (amount > depositLimit)
                 return;
         }
         setBalance(getBalance() + amount);
         if (isEmployee(email)) {
-            employees.get(email).setDepositAmount(employees.get(email).getDepositAmount() + amount);
+            employees.get(email).getDeposits().put(timestamp, amount);
         } else if (managers.containsKey(email)) {
-            managers.get(email).setDepositAmount(managers.get(email).getDepositAmount() + amount);
+            managers.get(email).getDeposits().put(timestamp, amount);
         }
     }
 
@@ -159,7 +207,7 @@ public class BusinessAccount extends Account {
         }
 
         amount *= exchangeRates.getRate(payCurrency, card.getAccountBelonging().getCurrency());
-        addSpending(email, amount);
+        addSpending(email, amount, timestamp);
         double ronAmount = amount * exchangeRates.getRate(getCurrency(), Utils.DEFAULT_CURRENCY);
         double newAmount = amount * getOwner().getCommission(ronAmount);
 
@@ -194,6 +242,10 @@ public class BusinessAccount extends Account {
         card.getAccountBelonging().addToSpendingsReport(node);
         checkForGold(newAmount, exchangeRates);
 
+        if (!commerciants.contains(commerciant)) {
+            commerciants.add(commerciant);
+        }
+
         return node;
     }
 
@@ -201,33 +253,63 @@ public class BusinessAccount extends Account {
         return employees.containsKey(email);
     }
 
-    public void addSpending(String email, double amount) {
+    public void addSpending(String email, double amount, int timestamp) {
+        Transaction transaction = new Transaction("commerciant", amount);
         if (employees.containsKey(email)) {
-            employees.get(email).setSpentAmount(employees.get(email).getSpentAmount() + amount);
+            employees.get(email).getTransactions().put(timestamp, transaction);
         } else if (managers.containsKey(email)) {
-            managers.get(email).setSpentAmount(managers.get(email).getSpentAmount() + amount);
+            managers.get(email).getTransactions().put(timestamp, transaction);
         }
     }
 
-    public double getTotalSpent() {
+    public double getTotalSpent(final int startTimestamp, final int endTimestamp) {
         double total = 0;
         for (BusinessAccUser user : managers.values()) {
-            total += user.getSpentAmount();
+            total += user.getSpentAmount(startTimestamp, endTimestamp);
         }
         for (BusinessAccUser user : employees.values()) {
-            total += user.getSpentAmount();
+            total += user.getSpentAmount(startTimestamp, endTimestamp);
         }
         return total;
     }
 
-    public double getTotalDeposited() {
+    public double getTotalDeposited(final int startTimestamp, final int endTimestamp) {
         double total = 0;
         for (BusinessAccUser user : managers.values()) {
-            total += user.getDepositAmount();
+            total += user.getDepositAmount(startTimestamp, endTimestamp);
         }
         for (BusinessAccUser user : employees.values()) {
-            total += user.getDepositAmount();
+            total += user.getDepositAmount(startTimestamp, endTimestamp);
         }
         return total;
+    }
+
+    public double getTotalCommerciant(final int startTimestamp, final int endTimestamp, final String commerciant) {
+        double total = 0;
+        for (BusinessAccUser user : managers.values()) {
+            total += user.getTotalSpentByCommerciant(startTimestamp, endTimestamp, commerciant);
+        }
+        for (BusinessAccUser user : employees.values()) {
+            total += user.getTotalSpentByCommerciant(startTimestamp, endTimestamp, commerciant);
+        }
+        return total;
+    }
+
+
+
+    @Override
+    public ObjectNode getJson() {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("IBAN", getIban());
+        node.put("balance", getBalance());
+        node.put("currency", getCurrency());
+        node.put("type", "business");
+
+        ArrayNode array = JsonNodeFactory.instance.arrayNode();
+        for (Card card : getCards()) {
+            array.add(card.getJson());
+        }
+        node.set("cards", array);
+        return node;
     }
 }

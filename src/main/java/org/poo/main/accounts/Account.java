@@ -115,7 +115,7 @@ public abstract class Account {
             return Errors.frozenCard(timestamp);
         }
 
-        amount *= exchangeRates.getRate(payCurrency, card.getAccountBelonging().getCurrency());
+        amount *= exchangeRates.getRate(payCurrency, currency);
         double ronAmount = amount * exchangeRates.getRate(currency, Utils.DEFAULT_CURRENCY);
         double newAmount = amount * getOwner().getCommission(ronAmount);
 
@@ -227,7 +227,11 @@ public abstract class Account {
      */
     public ObjectNode addSplitTransaction(final ArrayNode array, final String payCurrency, final double amount, final int timestamp, final ArrayNode amountsArray, final String type) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.set("amountForUsers", amountsArray);
+        if (type.equals("custom")) {
+            node.set("amountForUsers", amountsArray);
+        } else {
+            node.put("amount", amountsArray.get(0).asDouble());
+        }
         node.put("currency", payCurrency);
         String formatted = String.format("%.2f", amount);
         node.put("description", "Split payment of " + formatted + " " + payCurrency);
@@ -468,7 +472,7 @@ public abstract class Account {
         throw new UnsupportedOperationException("Account is not of type business");
     }
 
-    public void addFunds(double amount, String email) {
+    public void addFunds(double amount, String email, final int timestamp) {
         balance += amount;
     }
 }

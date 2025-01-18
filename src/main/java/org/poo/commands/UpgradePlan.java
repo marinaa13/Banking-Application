@@ -3,6 +3,8 @@ package org.poo.commands;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
+import org.poo.main.Commerciant;
+import org.poo.utils.Output;
 
 public class UpgradePlan implements Command {
     private final Application app;
@@ -19,7 +21,9 @@ public class UpgradePlan implements Command {
 
     @Override
     public ObjectNode execute() {
-        app.upgradePlan(account, newPlanType, timestamp);
+        ObjectNode inner = app.upgradePlan(account, newPlanType, timestamp);
+        if (inner != null)
+            return Output.getCommand("upgradePlan", inner, timestamp);
         return null;
     }
 }

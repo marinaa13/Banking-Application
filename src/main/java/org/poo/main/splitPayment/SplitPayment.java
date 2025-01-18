@@ -43,11 +43,6 @@ public class SplitPayment {
         observers.add(observer);
     }
 
-    // Method to remove observers (users)
-    public void removeObserver(Observer observer) {
-        observers.remove(observer);
-    }
-
     // Notify all observers of status update -> they can now try to make the payment
     public void notifyObservers() {
         for (Observer observer : observers) {
@@ -83,13 +78,14 @@ public class SplitPayment {
 
     private String checkIfAllUsersHaveEnoughMoney() {
         int i = 0;
-        for (Account account : userStatuses.keySet()) {
+        for (String accountIban : accounts) {
+            Account account = getAccountByIban(accountIban);
             Double amount = amountForUser.get(i++);
-            amount *= exchangeRates.getRate(currency, account.getCurrency());
-            double ronAmount = amount * exchangeRates.getRate(currency, Utils.DEFAULT_CURRENCY);
-            amount *= account.getOwner().getCommission(ronAmount);
+            Double newAmount = amount * exchangeRates.getRate(currency, account.getCurrency());
+//            double ronAmount = amount * exchangeRates.getRate(currency, Utils.DEFAULT_CURRENCY);
+//            newAmount *= account.getOwner().getCommission(ronAmount);
 
-            if (account.getBalance() < amount) {
+            if (account.getBalance() < newAmount) {
                 // big boo boo
                 return account.getIban();
             }
@@ -120,5 +116,14 @@ public class SplitPayment {
     public ArrayNode getAmountsArray() {
         ObjectMapper objectMapper = new ObjectMapper();
         return objectMapper.valueToTree(amountForUser);
+    }
+
+    public Account getAccountByIban(String account) {
+        for (Account acc : userStatuses.keySet()) {
+            if(acc.getIban().equals(account)) {
+                return acc;
+            }
+        }
+        return null;
     }
 }

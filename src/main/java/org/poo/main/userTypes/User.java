@@ -80,7 +80,8 @@ public class User implements Observer {
 
         ArrayNode array = JsonNodeFactory.instance.arrayNode();
         for (Account account : accounts) {
-            array.add(account.getJson());
+            if (account.getOwner().equals(this))
+                array.add(account.getJson());
         }
 
         node.set("accounts", array);
@@ -107,8 +108,8 @@ public class User implements Observer {
         node.put("timestamp", timestamp);
         node.put("description", "New account created");
 
-        // Add account report if it's not the first account
-        if (accounts.size() > 1) {
+        // Add account report if it's not the first account ????????????????????????????????????????????????????????????
+        if (accounts.size() >= 1) {
             account.addToReport(node);
         }
         commandHistory.addToHistory(node);
@@ -208,10 +209,12 @@ public class User implements Observer {
             node.put("description", "Account is not of type savings.");
         } else {
             Account to = getFirstClassicAccount(currency);
-            makeSavingsWithdrawal(acc, to, amount, currency, timestamp);
-            node.put("description", "Savings withdrawal");
+            node = makeSavingsWithdrawal(acc, to, amount, currency, timestamp);
         }
         getCommandHistory().addToHistory(node);
+        acc.addToReport(node);
+        if (node.has("amount"))
+            getCommandHistory().addToHistory(node);
     }
 
     public Account getFirstClassicAccount(String currency) {
@@ -224,34 +227,40 @@ public class User implements Observer {
     }
 
     //amountul e in currency
-    public void makeSavingsWithdrawal(Account from, Account to, double amount, String currency, int timestamp) {
-        if (from.getBalance() >= amount) {
-            from.setBalance(from.getBalance() - amount);
+    public ObjectNode makeSavingsWithdrawal(Account from, Account to, double amount, String currency, int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+
+        double newAmount = amount * app.getExchangeRates().getRate(currency, from.getCurrency());
+
+        if (from.getBalance() >= newAmount) {
+            from.setBalance(from.getBalance() - newAmount);
             to.setBalance(to.getBalance() + amount);
+            node.put("amount", amount);
+            node.put("classicAccountIBAN", to.getIban());
+            node.put("description", "Savings withdrawal");
+            node.put("savingsAccountIBAN", from.getIban());
+            node.put("timestamp", timestamp);
+
         } else {
-            ObjectNode node = Errors.insufficientFunds(timestamp);
-            getCommandHistory().addToHistory(node);
+            node = Errors.insufficientFunds(timestamp);
         }
+        return node;
     }
 
     public void upgradePlan(Account acc, ServicePlan newPlanType, double rate, int timestamp) {
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put("timestamp", timestamp);
-        node.put("description", "Upgrade plan");
-        node.put("accountIBAN", acc.getIban());
-        node.put("newPlanType", newPlanType.toString().toLowerCase());
-        commandHistory.addToHistory(node);
-
+        ObjectNode node;
         if (newPlanType == plan) {
-            node.put("description", "The user already has the " + plan + " plan.");
+            node = Errors.alreadyOwnedPlan(timestamp, newPlanType.toString().toLowerCase());
         } else if (newPlanType.ordinal() < plan.ordinal()) {
-            node.put("description", "You cannot downgrade your plan.");
+            node = Errors.downgradePlan(timestamp);
         } else {
-            changePlan(newPlanType, acc, rate);
+            node = changePlan(newPlanType, acc, rate, timestamp);
         }
+        getCommandHistory().addToHistory(node);
+        acc.addToReport(node);
     }
 
-    private void changePlan(ServicePlan newPlanType, Account acc, double rate) {
+    private ObjectNode changePlan(ServicePlan newPlanType, Account acc, double rate, int timestamp) {
         double amount = 0;
         if ((plan == ServicePlan.STUDENT || plan == ServicePlan.STANDARD) && newPlanType == ServicePlan.SILVER) {
             amount = 100 * rate;
@@ -262,10 +271,15 @@ public class User implements Observer {
         }
         try {
             acc.deductFee(amount);
+            ObjectNode node = JsonNodeFactory.instance.objectNode();
+            node.put("timestamp", timestamp);
+            node.put("description", "Upgrade plan");
+            node.put("accountIBAN", acc.getIban());
+            node.put("newPlanType", newPlanType.toString().toLowerCase());
             plan = newPlanType;
+            return node;
         } catch (Exception e) {
-            ObjectNode node = Errors.insufficientFunds(0);
-            commandHistory.addToHistory(node);
+            return Errors.insufficientFunds(timestamp);
         }
     }
 
@@ -312,11 +326,11 @@ public class User implements Observer {
         }
 
         if (splitPayment.getAccountToBlame().isEmpty()) {
-            Double amount = splitPayment.getAmountForUser().get(splitPayment.getAccounts().indexOf(acc.getIban()));
-            amount *= app.getExchangeRates().getRate(splitPayment.getCurrency(), acc.getCurrency());
-            double ronAmount = amount * app.getExchangeRates().getRate(splitPayment.getCurrency(), Utils.DEFAULT_CURRENCY);
-            amount *= getCommission(ronAmount);
-            acc.setBalance(acc.getBalance() - amount);
+            double amount = splitPayment.getAmountForUser().get(splitPayment.getAccounts().indexOf(acc.getIban()));
+            double newAmount = amount * app.getExchangeRates().getRate(splitPayment.getCurrency(), acc.getCurrency());
+//            double ronAmount = amount * app.getExchangeRates().getRate(splitPayment.getCurrency(), Utils.DEFAULT_CURRENCY);
+//            newAmount *= getCommission(ronAmount);
+            acc.setBalance(acc.getBalance() - newAmount);
             ArrayNode accountsArray = splitPayment.getAccountsArray();
             ArrayNode amountsArray = splitPayment.getAmountsArray();
             ObjectNode node = acc.addSplitTransaction(accountsArray, splitPayment.getCurrency(),
