@@ -245,6 +245,9 @@ public class Application {
         card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(node);
         if (node.has("amount")) {
             card.madePayment(timestamp);
+            ObjectNode upgrade = card.getAccountBelonging().checkForGold(amount, exchangeRates, timestamp);
+            if (upgrade != null)
+                card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(upgrade);
         }
         return null;
     }
@@ -291,10 +294,13 @@ public class Application {
         }
 
         from.sendMoney(toAccount, amount, commission, description, timestamp);
-        from.checkForGold(newAmount, exchangeRates);
+        ObjectNode result = from.checkForGold(newAmount, exchangeRates, timestamp);
         amount *= exchangeRates.getRate(from.getCurrency(), to.getCurrency());
         to.receiveMoney(fromAccount, amount, description, timestamp);
 
+        // ?????????????????????????????????????????????????????????????????????????????????????????????????????/
+        if (result != null)
+            from.getOwner().getCommandHistory().addToHistory(result);
         from.setBalance(from.getBalance());
         to.setBalance(to.getBalance());
         return null;
@@ -536,7 +542,7 @@ public class Application {
             return Errors.userNotFound(timestamp);
         }
         Card card = Search.getCardByNumber(users, cardNumber);
-        if (card == null) {
+        if (card == null || !card.getAccountBelonging().getOwner().getEmail().equals(email)) {
             return Errors.cardNotFound(timestamp);
         }
 
@@ -586,16 +592,31 @@ public class Application {
             return Errors.userNotFound(timestamp);
         }
         Account acc = Search.getAccountByIBAN(users, account);
-        return acc.changeSpendingLimit(amount, email, timestamp);
+        if (acc == null) {
+            return Errors.accountNotFound(timestamp);
+        }
+        try {
+            return acc.changeSpendingLimit(amount, email, timestamp);
+        } catch (UnsupportedOperationException e) {
+            return Errors.notBusinessAccount(timestamp);
+        }
     }
 
-    public void changeDepositLimit(String email, String account, double amount, int timestamp) {
+    public ObjectNode changeDepositLimit(String email, String account, double amount, int timestamp) {
         User user = Search.getUserByEmail(users, email);
         if (user == null) {
-            return;         //user not found?
+            return Errors.userNotFound(timestamp);
         }
         Account acc = Search.getAccountByIBAN(users, account);
-        acc.changeDepositLimit(amount, email, timestamp);
+        if (acc == null) {
+            return Errors.accountNotFound(timestamp);
+        }
+        try {
+            acc.changeDepositLimit(amount, email, timestamp);
+        } catch (UnsupportedOperationException e) {
+            return Errors.notBusinessAccount(timestamp);
+        }
+        return null;
     }
 
     public ObjectNode businessReport(String type, int startTimestamp, int endTimestamp, String account, int timestamp) {

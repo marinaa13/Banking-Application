@@ -3,6 +3,7 @@ package org.poo.commands;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
+import org.poo.utils.Output;
 
 public class ChangeDepositLimit implements Command {
     private final String email;
@@ -21,7 +22,9 @@ public class ChangeDepositLimit implements Command {
 
     @Override
     public ObjectNode execute() {
-        app.changeDepositLimit(email, account, amount, timestamp);
+        ObjectNode inner = app.changeDepositLimit(email, account, amount, timestamp);
+        if (inner != null)
+            return Output.getCommand("changeDepositLimit", inner, timestamp);
         return null;
     }
 }

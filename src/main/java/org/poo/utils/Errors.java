@@ -142,4 +142,11 @@ public final class Errors {
         node.put("description", "The user already has the " + plan + " plan.");
         return node;
     }
+
+    public static ObjectNode notBusinessAccount(int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "This is not a business account");
+        return node;
+    }
 }

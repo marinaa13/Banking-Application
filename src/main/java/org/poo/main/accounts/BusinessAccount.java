@@ -202,6 +202,7 @@ public class BusinessAccount extends Account {
         if (!employees.containsKey(email) && !managers.containsKey(email) && !getOwner().getEmail().equals(email)) {
             return Errors.cardNotFound(timestamp);
         }
+
         if (card.getStatus().equals("frozen")) {
             return Errors.frozenCard(timestamp);
         }
@@ -239,7 +240,6 @@ public class BusinessAccount extends Account {
 
         card.getAccountBelonging().addToReport(node);
         card.getAccountBelonging().addToSpendingsReport(node);
-        checkForGold(newAmount, exchangeRates);
 
         if (!commerciants.contains(commerciant)) {
             commerciants.add(commerciant);

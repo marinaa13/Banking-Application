@@ -1,5 +1,6 @@
 package org.poo.utils;
 
+import java.math.BigDecimal;
 import java.util.Random;
 
 public final class Utils {
@@ -72,7 +73,13 @@ public final class Utils {
         splitPaymentRandom = new Random(SPLIT_PAYMENT_SEED);
     }
 
-    public static double makeAproximation(double value) {
-        return Math.round(value * 100.0) / 100.0;
+    public static double bigDecimalPrecision(double balance, double toPay, double cashback) {
+        BigDecimal b = new BigDecimal(balance);
+        BigDecimal p = new BigDecimal(toPay);
+        BigDecimal c = new BigDecimal(cashback);
+
+        // Perform precise arithmetic
+        BigDecimal result = b.subtract(p).add(c);
+        return result.doubleValue();
     }
 }

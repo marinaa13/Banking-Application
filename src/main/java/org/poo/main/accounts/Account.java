@@ -19,6 +19,7 @@ import org.poo.main.ExchangeRatesGraph;
 import org.poo.main.moneyback.CashbackService;
 import org.poo.main.userTypes.User;
 import org.poo.utils.Errors;
+import org.poo.utils.Search;
 import org.poo.utils.Utils;
 
 /**
@@ -115,21 +116,16 @@ public abstract class Account {
             return Errors.frozenCard(timestamp);
         }
 
+        if (!card.getAccountBelonging().getOwner().getEmail().equals(email)) {
+            return Errors.cardNotFound(timestamp);
+        }
+
         amount *= exchangeRates.getRate(payCurrency, currency);
         double ronAmount = amount * exchangeRates.getRate(currency, Utils.DEFAULT_CURRENCY);
         double newAmount = amount * getOwner().getCommission(ronAmount);
 
         if (balance < newAmount) {
             return Errors.insufficientFunds(timestamp);
-        }
-
-        if (card.getAccountBelonging().isBusinessAccount()) {
-            BusinessAccount businessAccount = (BusinessAccount) card.getAccountBelonging();
-            if (businessAccount.isEmployee(email)) {
-                if (businessAccount.getSpendingLimit() < newAmount) {
-                    return null;
-                }
-            }
         }
 
         // verific daca am vreun cashback de dat pt tranzactii, care poate fi primit de orice comerciant
@@ -143,7 +139,7 @@ public abstract class Account {
         newCashback = newCashback * exchangeRates.getRate(Utils.DEFAULT_CURRENCY, currency);
         cashback += newCashback;
 
-        balance -= (newAmount - cashback);
+        balance = Utils.bigDecimalPrecision(balance, newAmount, cashback);
         node.put("timestamp", timestamp);
         node.put("description", "Card payment");
         node.put("amount", amount);
@@ -151,7 +147,6 @@ public abstract class Account {
 
         card.getAccountBelonging().addToReport(node);
         card.getAccountBelonging().addToSpendingsReport(node);
-        checkForGold(newAmount, exchangeRates);
         return node;
     }
 
@@ -439,20 +434,26 @@ public abstract class Account {
         if (owner != null) {
             owner.getCommandHistory().addToHistory(node);
         }
-                checkForGold(newAmount, exchangeRates);
         addToReport(node);
     }
 
-    public void checkForGold(final double amount, ExchangeRatesGraph exchangeRates) {
+    public ObjectNode checkForGold(final double amount, ExchangeRatesGraph exchangeRates, final int timestamp) {
         double ronAmount = amount * exchangeRates.getRate(currency, Utils.DEFAULT_CURRENCY);
-        if (ronAmount > 500) {
+        if (ronAmount > 300) {
             if (getOwner().getPlan() == ServicePlan.SILVER) {
                 getOwner().setNumPayments(getOwner().getNumPayments() + 1);
                 if (getOwner().getNumPayments() >= 5) {
                     getOwner().setPlan(ServicePlan.GOLD);
+                    ObjectNode node = JsonNodeFactory.instance.objectNode();
+                    node.put("timestamp", timestamp);
+                    node.put("description", "Upgrade plan");
+                    node.put("accountIBAN", iban);
+                    node.put("newPlanType", "gold");
+                    return node;
                 }
             }
         }
+        return null;
     }
 
     public void addUser(String email, String owner, User user) {

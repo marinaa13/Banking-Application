@@ -22,4 +22,12 @@ public final class Output {
         node.put("timestamp", timestamp);
         return node;
     }
+
+    public static ObjectNode upgradePlan(final int timestamp, final String account) {
+        node.put("timestamp", timestamp);
+        node.put("description", "Upgrade plan");
+        node.put("accountIBAN", account);
+        node.put("newPlanType", "gold");
+        return node;
+    }
 }
