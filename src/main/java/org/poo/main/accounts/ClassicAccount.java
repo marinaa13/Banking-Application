@@ -46,7 +46,7 @@ public class ClassicAccount extends Account{
     }
 
     @Override
-    public void changeDepositLimit(double amount, String email, int timestamp) {
+    public ObjectNode changeDepositLimit(double amount, String email, int timestamp) {
         throw new UnsupportedOperationException("This is not a business account");
     }
 

@@ -612,11 +612,10 @@ public class Application {
             return Errors.accountNotFound(timestamp);
         }
         try {
-            acc.changeDepositLimit(amount, email, timestamp);
+            return acc.changeDepositLimit(amount, email, timestamp);
         } catch (UnsupportedOperationException e) {
             return Errors.notBusinessAccount(timestamp);
         }
-        return null;
     }
 
     public ObjectNode businessReport(String type, int startTimestamp, int endTimestamp, String account, int timestamp) {

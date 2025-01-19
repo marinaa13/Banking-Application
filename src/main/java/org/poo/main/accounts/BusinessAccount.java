@@ -86,11 +86,12 @@ public class BusinessAccount extends Account {
     }
 
     @Override
-    public void changeDepositLimit(double amount, String email, int timestamp) {
+    public ObjectNode changeDepositLimit(double amount, String email, int timestamp) {
         if (!getOwner().getEmail().equals(email)) {
-            return;     //tre sa mi dea “You are not authorized to make this transaction.” dar nuj unde
+            return Errors.changeDepLimitError(timestamp);
         }
         setDepositLimit(amount);
+        return null;
     }
 
     @Override

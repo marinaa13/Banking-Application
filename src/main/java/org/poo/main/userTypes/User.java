@@ -269,6 +269,7 @@ public class User implements Observer {
         } else if (plan == ServicePlan.SILVER && newPlanType == ServicePlan.GOLD) {
             amount = 250 * rate;
         }
+        amount = Math.round(amount * 1000000.0) / 1000000.0;
         try {
             acc.deductFee(amount);
             ObjectNode node = JsonNodeFactory.instance.objectNode();

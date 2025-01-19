@@ -129,6 +129,13 @@ public final class Errors {
         return node;
     }
 
+    public static ObjectNode changeDepLimitError(final int timestamp) {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "You must be owner in order to change deposit limit.");
+        return node;
+    }
+
     public static ObjectNode downgradePlan(final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);

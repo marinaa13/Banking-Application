@@ -346,6 +346,7 @@ public abstract class Account {
         if (card == null) {
             return;
         }
+
         cards.remove(card);
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
@@ -466,7 +467,8 @@ public abstract class Account {
         return null;
     }
 
-    public void changeDepositLimit(double amount, String email, int timestamp) {
+    public ObjectNode changeDepositLimit(double amount, String email, int timestamp) {
+        return null;
     }
 
     public ObjectNode getBusinessReport(int startTimestamp, int endTimestamp, String type) {
