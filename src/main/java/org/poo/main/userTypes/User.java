@@ -359,13 +359,14 @@ public class User implements Observer {
 
     //trebuie gasit primul la care inca nu a acceptat/refuzat
 
-    public void handleSplitPayment(int timestamp, SplitPaymentStatus status) {
+    public void handleSplitPayment(final int timestamp, SplitPaymentStatus status, final String type) {
         for (SplitPaymentInfo splitPaymentInfo : splitPaymentQueue) {
             if (splitPaymentInfo == null) {
                 break;
             }
             // cand gasesc primul care e pending, il refuz si tre sa il sterg de la toata lumea
-            if (splitPaymentInfo.getStatus() == SplitPaymentStatus.PENDING) {
+            if (splitPaymentInfo.getStatus() == SplitPaymentStatus.PENDING &&
+                    splitPaymentInfo.getSplitPayment().getSplitPaymentType().equals(type)) {
                 SplitPayment splitPayment = splitPaymentInfo.getSplitPayment();
                 splitPayment.updatePaymentStatus(splitPaymentInfo.getAccount(), status);
                 splitPaymentInfo.setStatus(status);

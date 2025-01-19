@@ -9,16 +9,18 @@ public class AcceptSplitPayment implements Command {
     private final Application app;
     private final String email;
     private final int timestamp;
+    private final String type;
 
     public AcceptSplitPayment(Application app, CommandInput input) {
         this.app = app;
         email = input.getEmail();
         timestamp = input.getTimestamp();
+        type = input.getSplitPaymentType();
     }
 
     @Override
     public ObjectNode execute() {
-        ObjectNode inner = app.acceptSplitPayment(email, timestamp);
+        ObjectNode inner = app.acceptSplitPayment(email, timestamp, type);
         if (inner != null) {
             return Output.getCommand("acceptSplitPayment", inner, timestamp);
         }

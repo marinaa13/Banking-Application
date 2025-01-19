@@ -15,6 +15,7 @@ public class DeleteCard implements Command {
     private final Application app;
     private final String cardNumber;
     private final int timestamp;
+    private final String email;
 
     /**
      * Constructs a {@link DeleteCard} command using the provided
@@ -28,11 +29,12 @@ public class DeleteCard implements Command {
         this.app = app;
         this.cardNumber = input.getCardNumber();
         this.timestamp = input.getTimestamp();
+        email = input.getEmail();
     }
 
     /**
      * Executes the delete card command by calling the
-     * {@link Application#deleteCard(String, int)} method to delete the specified card.
+     * {@link Application#deleteCard(String, int, String)} method to delete the specified card.
      * <p>
      * The command does not return any specific output, as the operation is handled
      * internally within the application.
@@ -41,7 +43,7 @@ public class DeleteCard implements Command {
      */
     @Override
     public ObjectNode execute() {
-        app.deleteCard(cardNumber, timestamp);
+        app.deleteCard(cardNumber, timestamp, email);
         return null;
     }
 }

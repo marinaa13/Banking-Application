@@ -163,10 +163,10 @@ public class Application {
      * @param cardNumber the card number of the card to be deleted
      * @param timestamp the timestamp of the deletion
      */
-    public void deleteCard(final String cardNumber, final int timestamp) {
+    public void deleteCard(final String cardNumber, final int timestamp, final String email) {
         Account acc = Search.getAccountByCard(users, cardNumber);
         if (acc != null) {
-            acc.deleteCard(cardNumber, timestamp);
+            acc.deleteCard(cardNumber, timestamp, email);
         }
     }
 
@@ -560,21 +560,21 @@ public class Application {
         return array;
     }
 
-    public ObjectNode acceptSplitPayment(String email, int timestamp) {
+    public ObjectNode acceptSplitPayment(String email, int timestamp, final String type) {
         User user = Search.getUserByEmail(users, email);
         if (user == null) {
             return Errors.userNotFound(timestamp);
         }
-        user.handleSplitPayment(timestamp, SplitPaymentStatus.ACCEPTED);
+        user.handleSplitPayment(timestamp, SplitPaymentStatus.ACCEPTED, type);
         return null;
     }
 
-    public ObjectNode rejectSplitPayment(String email, int timestamp) {
+    public ObjectNode rejectSplitPayment(final String email, final int timestamp, final String type) {
         User user = Search.getUserByEmail(users, email);
         if (user == null) {
             return Errors.userNotFound(timestamp);
         }
-        user.handleSplitPayment(timestamp, SplitPaymentStatus.REJECTED);
+        user.handleSplitPayment(timestamp, SplitPaymentStatus.REJECTED, type);
         return null;
     }
 

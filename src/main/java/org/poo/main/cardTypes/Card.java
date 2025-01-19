@@ -71,4 +71,8 @@ public class Card {
      */
     public void madePayment(final int timestamp) {
     }
+
+    public boolean isOneTimeCard() {
+        return false;
+    }
 }

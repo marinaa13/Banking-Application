@@ -34,11 +34,16 @@ public class OneTimeCard extends Card {
      */
     @Override
     public void madePayment(final int timestamp) {
-        getAccountBelonging().deleteCard(getCardNumber(), timestamp);
+        getAccountBelonging().deleteOneTimeCard(getCardNumber(), timestamp);
 
         Card card = new OneTimeCard(getAccount());
         card.setCardNumber(Utils.generateCardNumber());
 
         getAccountBelonging().getOwner().addCard(card, timestamp);
+    }
+
+    @Override
+    public boolean isOneTimeCard() {
+        return true;
     }
 }

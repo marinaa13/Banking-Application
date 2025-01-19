@@ -341,11 +341,14 @@ public abstract class Account {
      * @param cardNumber the card number of the card to delete
      * @param timestamp  the timestamp of the deletion
      */
-    public void deleteCard(final String cardNumber, final int timestamp) {
+    public void deleteCard(final String cardNumber, final int timestamp, final String email) {
         Card card = getCardByNumber(cardNumber);
-        if (card == null) {
+        if (card == null || !getOwner().getEmail().equals(email)) {
             return;
         }
+
+        if (balance > 0)
+            return;
 
         cards.remove(card);
         ObjectNode node = JsonNodeFactory.instance.objectNode();
@@ -477,5 +480,21 @@ public abstract class Account {
 
     public void addFunds(double amount, String email, final int timestamp) {
         balance += amount;
+    }
+
+    public void deleteOneTimeCard(String cardNumber, int timestamp) {
+        Card card = getCardByNumber(cardNumber);
+        if (card == null) {
+            return;
+        }
+
+        cards.remove(card);
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("timestamp", timestamp);
+        node.put("description", "The card has been destroyed");
+        node.put("card", cardNumber);
+        node.put("cardHolder", getOwner().getEmail());
+        node.put("account", getIban());
+        getOwner().getCommandHistory().addToHistory(node);
     }
 }
