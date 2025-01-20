@@ -16,7 +16,7 @@ import org.poo.main.Commerciant;
 import org.poo.main.ServicePlan;
 import org.poo.main.cardTypes.Card;
 import org.poo.main.ExchangeRatesGraph;
-import org.poo.main.moneyback.CashbackService;
+import org.poo.main.CashbackService;
 import org.poo.main.User;
 import org.poo.utils.Errors;
 import org.poo.utils.Utils;

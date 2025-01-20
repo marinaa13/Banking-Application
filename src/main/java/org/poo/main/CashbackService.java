@@ -1,8 +1,5 @@
-package org.poo.main.moneyback;
+package org.poo.main;
 
-import org.poo.main.Application;
-import org.poo.main.Commerciant;
-import org.poo.main.ServicePlan;
 import org.poo.utils.Utils;
 
 import java.util.HashMap;

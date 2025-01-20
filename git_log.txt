@@ -1,0 +1,71 @@
+commit c3f63d76c7d0af7b0784be9816b433c9b8cb77bc
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Mon Jan 20 03:45:10 2025 +0200
+
+    IM DOOOONEEEEE
+
+commit 36218b8e3abcd8b7e194344f81471ab22af1e7e9
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Sun Jan 19 17:49:41 2025 +0200
+
+    all tests done, now checkstyle + refactor + readme
+
+commit f015ce14f6632438a2f4697c3ed25a04d1cdb000
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Sun Jan 19 02:19:48 2025 +0200
+
+    only test 19 remaining
+
+commit 9d9bc537ad2e1e80aec30c1488d2df5cdcafa785
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Sun Jan 19 00:53:33 2025 +0200
+
+    newest version of checker, last 2 tests to do
+
+commit a272b1258b0b50d960a81fb06ea8d3b34c464c7d
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Sat Jan 18 22:13:29 2025 +0200
+
+    i lied, NOW business should be done
+
+commit 6e488f4c3cd75f859891fdc75bc81d3b56958523
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Sat Jan 18 20:39:55 2025 +0200
+
+    done with business!!! (i think)
+
+commit 3c110cd312abf0096b6e4ca1c4fe96af49dc534d
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Fri Jan 17 21:18:09 2025 +0200
+
+    done first draft of business acc, need to figure out the start/end timestamp thing + commerciant type of report
+
+commit 43cd939695d6dd95938564c5ea018d70df67b4fe
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Thu Jan 16 17:43:54 2025 +0200
+
+    first 9 tests done, trying to implement business account
+
+commit 1883017a266e42c15e6814e679501085cf2304f6
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Sun Jan 5 18:25:45 2025 +0200
+
+    added cashback strategy, Output, withdrawls
+
+commit d2a0fa9430fb8d47c2224cfcfc0b85a2d83be1ff
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Fri Jan 3 22:41:51 2025 +0200
+
+    done commisions and first version of the buyback thingy
+
+commit bb2602b1fbe2f64a2d6ec963bc25732112a48839
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Fri Jan 3 13:38:25 2025 +0200
+
+    added files from the first part of the project
+
+commit 40e39d826fda6b9f625d6dd74263f773e68a180b
+Author: Marina Simion <mar2005simion@gmail.com>
+Date:   Fri Jan 3 13:32:51 2025 +0200
+
+    initial commit
