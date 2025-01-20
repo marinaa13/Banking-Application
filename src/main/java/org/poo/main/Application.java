@@ -9,18 +9,15 @@ import lombok.Setter;
 import org.poo.commands.CommandInvoker;
 import org.poo.fileio.ObjectInput;
 import org.poo.main.accounts.Account;
-import org.poo.main.accounts.BusinessAccount;
 import org.poo.main.cardTypes.Card;
 import org.poo.main.moneyback.CashbackService;
 import org.poo.main.splitPayment.SplitPayment;
 import org.poo.main.splitPayment.SplitPaymentInfo;
 import org.poo.main.splitPayment.SplitPaymentStatus;
-import org.poo.main.userTypes.User;
 import org.poo.utils.Errors;
 import org.poo.utils.Utils;
 import org.poo.utils.Search;
 
-import javax.swing.plaf.nimbus.NimbusStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -194,7 +191,8 @@ public class Application {
      * @param account the IBAN of the account to which funds will be added
      * @param amount the amount to be added
      */
-    public void addFunds(final String account, final double amount, final String email, final int timestamp) {
+    public void addFunds(final String account, final double amount, final String email,
+                         final int timestamp) {
         Account acc = Search.getAccountByIBAN(users, account);
         if (acc != null) {
             acc.addFunds(amount, email, timestamp);
@@ -225,7 +223,8 @@ public class Application {
      * @return an {@link ObjectNode} representing the result of the payment
      */
     public ObjectNode payOnline(final String cardNumber, double amount, final String currency,
-                                final int timestamp, final String commerciant, String email) {
+                                final int timestamp, final String commerciant,
+                                final String email) {
         Card card = Search.getCardByNumber(users, cardNumber);
         if (card == null) {
             return Errors.cardNotFound(timestamp);
@@ -245,9 +244,11 @@ public class Application {
         card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(node);
         if (node.has("amount")) {
             card.madePayment(timestamp);
-            ObjectNode upgrade = card.getAccountBelonging().checkForGold(amount, exchangeRates, timestamp);
-            if (upgrade != null)
+            ObjectNode upgrade = card.getAccountBelonging().checkForGold(amount,
+                                exchangeRates, timestamp);
+            if (upgrade != null) {
                 card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(upgrade);
+            }
         }
         return null;
     }
@@ -263,8 +264,9 @@ public class Application {
      */
     public ObjectNode sendMoney(final String fromAccount, final String toAccount, double amount,
                           final String description, final int timestamp) {
-        if (!isIBAN(fromAccount))
+        if (!isIBAN(fromAccount)) {
             return null;
+        }
         Account from = Search.getAccountByIBAN(users, fromAccount);
         Account to = isIBAN(toAccount) ? Search.getAccountByIBAN(users, toAccount)
                                         : Search.getAccountByAlias(users, toAccount);
@@ -282,7 +284,8 @@ public class Application {
             return Errors.userNotFound(timestamp);
         }
 
-        double ronAmount = amount * exchangeRates.getRate(from.getCurrency(), Utils.DEFAULT_CURRENCY);
+        double ronAmount = amount
+                * exchangeRates.getRate(from.getCurrency(), Utils.DEFAULT_CURRENCY);
         double commission = from.getOwner().getCommission(ronAmount);
         double newAmount = amount * commission;
 
@@ -298,9 +301,9 @@ public class Application {
         amount *= exchangeRates.getRate(from.getCurrency(), to.getCurrency());
         to.receiveMoney(fromAccount, amount, description, timestamp);
 
-        // ?????????????????????????????????????????????????????????????????????????????????????????????????????/
-        if (result != null)
+        if (result != null) {
             from.getOwner().getCommandHistory().addToHistory(result);
+        }
         from.setBalance(from.getBalance());
         to.setBalance(to.getBalance());
         return null;
@@ -329,14 +332,11 @@ public class Application {
         User user = Search.getUserByEmail(users, email);
         if (user != null) {
             ArrayNode array = user.getCommandHistory().getHistory();
-            // Convert ArrayNode to List<JsonNode> for easier sorting
             List<JsonNode> list = new ArrayList<>();
             array.forEach(list::add);
 
-            // Sort the List based on the "timestamp" field
             list.sort(Comparator.comparingLong(node -> node.get("timestamp").asLong()));
 
-            // Clear the original ArrayNode and add the sorted nodes back
             array.removeAll();
             list.forEach(array::add);
             return array;
@@ -432,10 +432,12 @@ public class Application {
      * @param amount the total amount to be paid
      * @param timestamp the timestamp of the payment
      */
-    public ObjectNode splitPayment(final String type, final List<String> accounts, final String currency,
-                                   final double amount,  final List<Double> amountForUsers,
-                                   final int timestamp, final int id) {
-        SplitPayment splitPayment = new SplitPayment(type, accounts, amount, currency, amountForUsers, exchangeRates, timestamp);
+    public ObjectNode splitPayment(final String type, final List<String> accounts,
+                                   final String currency, final double amount,
+                                   final List<Double> amountForUsers, final int timestamp,
+                                   final int id) {
+        SplitPayment splitPayment = new SplitPayment(type, accounts, amount, currency,
+                amountForUsers, exchangeRates, timestamp);
         for (String account : accounts) {
             Account acc = Search.getAccountByIBAN(users, account);
             if (acc == null) {
@@ -444,8 +446,6 @@ public class Application {
             splitPayment.addObserver(acc.getOwner());
         }
 
-        // Daca toate conturile exista, adaug splitPaymentInfo in coada de plati a fiecarui user
-        // si setez statusul platii ca PENDING pt fiecare user
         for (String account : accounts) {
             Account acc = Search.getAccountByIBAN(users, account);
             User user = acc.getOwner();
@@ -517,7 +517,16 @@ public class Application {
         return string.matches(".*\\d.*");
     }
 
-    public void withdrawSavings(String account, double amount, String currency, int timestamp) {
+    /**
+     * Processes a savings account withdrawal for a specified account.
+     *
+     * @param account    the IBAN of the savings account to withdraw from
+     * @param amount     the amount to withdraw
+     * @param currency   the currency of the withdrawal amount
+     * @param timestamp  the timestamp of the withdrawal request
+     */
+    public void withdrawSavings(final String account, double amount, final String currency,
+                                final int timestamp) {
         Account acc = Search.getAccountByIBAN(users, account);
         if (acc == null) {
             return;
@@ -526,17 +535,39 @@ public class Application {
         acc.getOwner().withdrawSavings(acc, amount, currency, timestamp);
     }
 
-    public ObjectNode upgradePlan(String account, String newPlanType, int timestamp) {
+    /**
+     * Upgrades the service plan of a specified account to a new plan type.
+     *
+     * @param account      the IBAN of the account to upgrade
+     * @param newPlanType  the new plan type to upgrade to (e.g., "silver", "gold")
+     * @param timestamp    the timestamp of the upgrade request
+     * @return {@code null} on successful upgrade,
+     * or an error {@link ObjectNode} if the account is not found
+     */
+    public ObjectNode upgradePlan(final String account, final String newPlanType,
+                                  final int timestamp) {
        Account acc = Search.getAccountByIBAN(users, account);
        if (acc == null) {
            return Errors.accountNotFound(timestamp);
        }
        double rate = exchangeRates.getRate(Utils.DEFAULT_CURRENCY, acc.getCurrency());
-       acc.getOwner().upgradePlan(acc, ServicePlan.valueOf(newPlanType.toUpperCase()), rate, timestamp);
+       acc.getOwner().upgradePlan(acc, ServicePlan.valueOf(newPlanType.toUpperCase()),
+                                    rate, timestamp);
          return null;
     }
 
-    public ObjectNode cashWithdrawal(String cardNumber, double amount, String email, String location, int timestamp) {
+    /**
+     * Processes a cash withdrawal from a specified card.
+     *
+     * @param cardNumber the card number from which the withdrawal is requested
+     * @param amount     the amount to withdraw
+     * @param email      the email of the user requesting the withdrawal
+     * @param timestamp  the timestamp of the withdrawal request
+     * @return {@code null} on successful withdrawal,
+     * or an error {@link ObjectNode} if the user or card is invalid
+     */
+    public ObjectNode cashWithdrawal(final String cardNumber, final double amount,
+                                     final String email, final int timestamp) {
         User user = Search.getUserByEmail(users, email);
         if (user == null) {
             return Errors.userNotFound(timestamp);
@@ -546,12 +577,18 @@ public class Application {
             return Errors.cardNotFound(timestamp);
         }
 
-        ObjectNode inner = card.getAccountBelonging().cashWithdrawal(card, amount, email, location, timestamp, exchangeRates);
+        ObjectNode inner = card.getAccountBelonging().cashWithdrawal(card,
+                amount, timestamp, exchangeRates);
         card.getAccountBelonging().setBalance(card.getAccountBelonging().getBalance());
         card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(inner);
         return null;
     }
 
+    /**
+     * Creates a JSON representation of all users in the system.
+     *
+     * @return an {@link ArrayNode} containing the JSON data of all users
+     */
     public ArrayNode printUsers() {
         ArrayNode array = JsonNodeFactory.instance.arrayNode();
         for (User user : users) {
@@ -560,25 +597,54 @@ public class Application {
         return array;
     }
 
-    public ObjectNode acceptSplitPayment(String email, int timestamp, final String type) {
+    /**
+     * Processes the acceptance of a split payment by a user.
+     *
+     * @param email     the email of the user accepting the split payment
+     * @param timestamp the timestamp of the acceptance
+     * @param type      the type of split payment (e.g., "custom" or "equal")
+     * @return {@code null} on successful acceptance,
+     * or an error {@link ObjectNode} if the user is not found
+     */
+    public ObjectNode acceptSplitPayment(final String email, final int timestamp,
+                                         final String type) {
         User user = Search.getUserByEmail(users, email);
         if (user == null) {
             return Errors.userNotFound(timestamp);
         }
-        user.handleSplitPayment(timestamp, SplitPaymentStatus.ACCEPTED, type);
+        user.handleSplitPayment(SplitPaymentStatus.ACCEPTED, type);
         return null;
     }
 
-    public ObjectNode rejectSplitPayment(final String email, final int timestamp, final String type) {
+    /**
+     * Processes the rejection of a split payment by a user.
+     *
+     * @param email     the email of the user rejecting the split payment
+     * @param timestamp the timestamp of the rejection
+     * @param type      the type of split payment (e.g., "custom" or "equal")
+     * @return {@code null} on successful rejection,
+     * or an error {@link ObjectNode} if the user is not found
+     */
+    public ObjectNode rejectSplitPayment(final String email, final int timestamp,
+                                         final String type) {
         User user = Search.getUserByEmail(users, email);
         if (user == null) {
             return Errors.userNotFound(timestamp);
         }
-        user.handleSplitPayment(timestamp, SplitPaymentStatus.REJECTED, type);
+        user.handleSplitPayment(SplitPaymentStatus.REJECTED, type);
         return null;
     }
 
-    public void addNewBussinessAssociate(String account, String role, String email, int timestamp) {
+    /**
+     * Adds a new business associate to a specified business account.
+     *
+     * @param account   the IBAN of the business account
+     * @param role      the role of the new associate (e.g., "manager" or "employee")
+     * @param email     the email of the user to be added as an associate
+     * @param timestamp the timestamp of the action
+     */
+    public void addNewBussinessAssociate(final String account, final String role,
+                                         final String email, final int timestamp) {
         Account acc = Search.getAccountByIBAN(users, account);
         if (acc == null) {
             return;
@@ -586,7 +652,18 @@ public class Application {
         acc.addNewBusinessAssociate(email, role, timestamp, this);
     }
 
-    public ObjectNode changeSpendingLimit(String email, String account, double amount, int timestamp) {
+    /**
+     * Changes the spending limit for a specified business account.
+     *
+     * @param email     the email of the user requesting the change
+     * @param account   the IBAN of the account for which the spending limit is to be changed
+     * @param amount    the new spending limit amount
+     * @param timestamp the timestamp of the request
+     * @return an {@link ObjectNode} representing the result of the operation,
+     *         or an error if the user or account is invalid or the account is not of type business
+     */
+    public ObjectNode changeSpendingLimit(final String email, final String account,
+                                          final double amount, final int timestamp) {
         User user = Search.getUserByEmail(users, email);
         if (user == null) {
             return Errors.userNotFound(timestamp);
@@ -602,7 +679,18 @@ public class Application {
         }
     }
 
-    public ObjectNode changeDepositLimit(String email, String account, double amount, int timestamp) {
+    /**
+     * Changes the deposit limit for a specified business account.
+     *
+     * @param email     the email of the user requesting the change
+     * @param account   the IBAN of the account for which the deposit limit is to be changed
+     * @param amount    the new deposit limit amount
+     * @param timestamp the timestamp of the request
+     * @return an {@link ObjectNode} representing the result of the operation,
+     *         or an error if the user or account is invalid or the account is not of type business
+     */
+    public ObjectNode changeDepositLimit(final String email, final String account,
+                                         final double amount, final int timestamp) {
         User user = Search.getUserByEmail(users, email);
         if (user == null) {
             return Errors.userNotFound(timestamp);
@@ -618,7 +706,20 @@ public class Application {
         }
     }
 
-    public ObjectNode businessReport(String type, int startTimestamp, int endTimestamp, String account, int timestamp) {
+    /**
+     * Generates a business report for a specified account within a given time range.
+     *
+     * @param type          the type of report (e.g., transaction statistics or commerciant report)
+     * @param startTimestamp the start timestamp of the report range
+     * @param endTimestamp   the end timestamp of the report range
+     * @param account        the IBAN of the business account
+     * @param timestamp      the timestamp of the report request
+     * @return an {@link ObjectNode} containing the business report,
+     * or an error if the account is invalid
+     */
+    public ObjectNode businessReport(final String type, final int startTimestamp,
+                                     final int endTimestamp, final String account,
+                                     final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         Account acc = Search.getAccountByIBAN(users, account);
         if (acc == null) {
@@ -633,7 +734,12 @@ public class Application {
         return node;
     }
 
-    public void removeAccount(Account a) {
+    /**
+     * Removes the specified account from the user who owns it.
+     *
+     * @param a the {@link Account} to remove
+     */
+    public void removeAccount(final Account a) {
         for (User u : users) {
             if (u.getAccounts().contains(a)) {
                 u.getAccounts().remove(a);

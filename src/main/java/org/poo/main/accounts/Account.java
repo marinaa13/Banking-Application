@@ -17,9 +17,8 @@ import org.poo.main.ServicePlan;
 import org.poo.main.cardTypes.Card;
 import org.poo.main.ExchangeRatesGraph;
 import org.poo.main.moneyback.CashbackService;
-import org.poo.main.userTypes.User;
+import org.poo.main.User;
 import org.poo.utils.Errors;
-import org.poo.utils.Search;
 import org.poo.utils.Utils;
 
 /**
@@ -57,12 +56,12 @@ public abstract class Account {
         report = new TreeMap<>();
         spendingsReport = new TreeMap<>();
         iban = Utils.generateIBAN();
-
     }
 
     /**
      * Converts the account to a JSON object.
      * The resulting JSON includes the IBAN, balance, currency, account type, and associated cards.
+     * It is overridden by subclasses to include additional fields.
      *
      * @return a JSON representation of the account
      */
@@ -75,7 +74,7 @@ public abstract class Account {
      *
      * @param card the card to be added to the account
      */
-    public void addCard(final Card card, String email) {
+    public void addCard(final Card card, final String email) {
         cards.add(card);
         card.setAccountBelonging(this);
     }
@@ -99,6 +98,7 @@ public abstract class Account {
      * Makes a payment from the account using the specified card.
      * The payment amount is converted to the account's currency using the provided exchange rates.
      * If the card is frozen or there are insufficient funds, an error is returned.
+     * It checks for commission and cashback, and updates the account balance accordingly.
      *
      * @param card          the card used for the payment
      * @param amount        the amount to be paid
@@ -110,7 +110,7 @@ public abstract class Account {
      */
     public ObjectNode makePayment(final Card card, double amount, final String payCurrency,
                                   final ExchangeRatesGraph exchangeRates, final int timestamp,
-                                  final String commerciant, String email) {
+                                  final String commerciant, final String email) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (card.getStatus().equals("frozen")) {
             return Errors.frozenCard(timestamp);
@@ -128,14 +128,12 @@ public abstract class Account {
             return Errors.insufficientFunds(timestamp);
         }
 
-        // verific daca am vreun cashback de dat pt tranzactii, care poate fi primit de orice comerciant
         double cashback = cashbackService.giveCashbackForTransactions(commerciant, amount);
 
-        // adaug tranzactia, indiferent ce tip e
         cashbackService.addTransactionToCommerciant(commerciant, ronAmount);
 
-        //verific cashbackul pt amount, care poate fi primit si pt tranzactia curenta
-        double newCashback = cashbackService.giveCashbackForAmount(commerciant, ronAmount - cashback, getOwner().getPlan());
+        double newCashback = cashbackService.giveCashbackForAmount(commerciant,
+                ronAmount - cashback, getOwner().getPlan());
         newCashback = newCashback * exchangeRates.getRate(Utils.DEFAULT_CURRENCY, currency);
         cashback += newCashback;
 
@@ -156,13 +154,14 @@ public abstract class Account {
      *
      * @param toAccount   the IBAN of the recipient account
      * @param amount      the amount to send
+     * @param commission  the commission to be deducted from the amount
      * @param description a description for the transaction
      * @param timestamp   the timestamp of the transaction
      */
-    public void sendMoney(final String toAccount, final double amount, final double commission, final String description, final int timestamp) {
+    public void sendMoney(final String toAccount, final double amount, final double commission,
+                          final String description, final int timestamp) {
         balance -= amount * commission;
         ObjectNode node = addTransaction(iban, toAccount, amount, description, timestamp);
-        // ????
         if (owner != null) {
             owner.getCommandHistory().addToHistory(node);
         }
@@ -178,7 +177,8 @@ public abstract class Account {
      * @param description a description for the transaction
      * @param timestamp   the timestamp of the transaction
      */
-    public void receiveMoney(final String fromAccount, final double amount, final String description, final int timestamp) {
+    public void receiveMoney(final String fromAccount, final double amount,
+                             final String description, final int timestamp) {
         balance += amount;
         ObjectNode node = addTransaction(fromAccount, iban, amount, description, timestamp);
         owner.getCommandHistory().addToHistory(node);
@@ -195,7 +195,9 @@ public abstract class Account {
      * @param timestamp   the timestamp of the transaction
      * @return an {@link ObjectNode} representing the transaction
      */
-    public ObjectNode addTransaction(final String fromAccount, final String toAccount, final double amount, final String description, final int timestamp) {
+    public ObjectNode addTransaction(final String fromAccount, final String toAccount,
+                                     final double amount, final String description,
+                                     final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
         node.put("description", description);
@@ -220,7 +222,9 @@ public abstract class Account {
      * @param timestamp   the timestamp of the transaction
      * @return an {@link ObjectNode} representing the split transaction
      */
-    public ObjectNode addSplitTransaction(final ArrayNode array, final String payCurrency, final double amount, final int timestamp, final ArrayNode amountsArray, final String type) {
+    public ObjectNode addSplitTransaction(final ArrayNode array, final String payCurrency,
+                                          final double amount, final int timestamp,
+                                          final ArrayNode amountsArray, final String type) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (type.equals("custom")) {
             node.set("amountForUsers", amountsArray);
@@ -239,7 +243,7 @@ public abstract class Account {
     /**
      * Sets the interest rate for the account.
      * <p>
-     * This operation is not supported for this account type and throws an exception.
+     * It is overridden by subclasses to set the interest rate for the specific account type.
      */
     public void setInterestRate(final double interestRate) {
     }
@@ -247,7 +251,7 @@ public abstract class Account {
     /**
      * Adds interest to the account.
      * <p>
-     * This operation is not supported for this account type and throws an exception.
+     * It is overridden by subclasses to add interest to the specific account type.
      */
     public ObjectNode addInterest() {
         return null;
@@ -340,16 +344,16 @@ public abstract class Account {
      *
      * @param cardNumber the card number of the card to delete
      * @param timestamp  the timestamp of the deletion
+     * @param email      the email of the account owner
      */
     public void deleteCard(final String cardNumber, final int timestamp, final String email) {
         Card card = getCardByNumber(cardNumber);
         if (card == null || !getOwner().getEmail().equals(email)) {
             return;
         }
-
-        if (balance > 0)
+        if (balance > 0) {
             return;
-
+        }
         cards.remove(card);
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
@@ -360,19 +364,38 @@ public abstract class Account {
         getOwner().getCommandHistory().addToHistory(node);
     }
 
+    /**
+     * Checks if the account is a savings account.
+     *
+     * @return {@code true} if the account is a savings account, {@code false} otherwise
+     */
     public boolean isSavingsAccount() {
         return false;
     }
 
+    /**
+     * Checks if the account is a classic account.
+     *
+     * @return {@code true} if the account is a classic account, {@code false} otherwise
+     */
     public boolean isClassicAccount() {
         return false;
     }
 
+    /**
+     * Checks if the account is a business account.
+     *
+     * @return {@code true} if the account is a current account, {@code false} otherwise
+     */
     public boolean isBusinessAccount() {
         return false;
     }
 
-    public void deductFee(double amount) throws Exception {
+    /**
+     * Deducts a fee from the account balance.
+     * If the account balance is insufficient, an exception is thrown.
+     */
+    public void deductFee(final double amount) throws Exception {
         if (balance < amount) {
             throw new Exception("Insufficient funds");
         } else {
@@ -380,7 +403,20 @@ public abstract class Account {
         }
     }
 
-    public ObjectNode cashWithdrawal(Card card, double amount, String email, String location, int timestamp, final ExchangeRatesGraph exchangeRates) {
+    /**
+     * Handles a cash withdrawal transaction from the account using the specified card.
+     * <p>
+     * If the card is invalid, frozen, or insufficient funds are detected, an error is returned.
+     *
+     * @param card          the {@link Card} used for the withdrawal
+     * @param amount        the amount to withdraw
+     * @param timestamp     the timestamp of the withdrawal transaction
+     * @param exchangeRates the {@link ExchangeRatesGraph} used for currency conversion
+     * @return {@code null} if the operation is successful, or an {@link ObjectNode} containing
+     *         error details if the operation fails
+     */
+    public ObjectNode cashWithdrawal(final Card card, final double amount, final int timestamp,
+                                     final ExchangeRatesGraph exchangeRates) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (card == null) {
             return Errors.cardNotFound(timestamp);
@@ -389,8 +425,9 @@ public abstract class Account {
             return Errors.frozenCard(timestamp);
         }
 
-        // amount e mereu in RON
-        double newAmount = amount * getOwner().getCommission(amount) * exchangeRates.getRate(Utils.DEFAULT_CURRENCY, card.getAccountBelonging().getCurrency());
+        double newAmount = amount * getOwner().getCommission(amount)
+                * exchangeRates.getRate(Utils.DEFAULT_CURRENCY,
+                card.getAccountBelonging().getCurrency());
 
         if (balance < newAmount) {
             return Errors.insufficientFunds(timestamp);
@@ -401,15 +438,23 @@ public abstract class Account {
         node.put("description", "Cash withdrawal of " + amount);
         node.put("amount", amount);
 
-
         card.getAccountBelonging().getOwner().getCommandHistory().addToHistory(node);
-
         card.getAccountBelonging().addToReport(node);
-        //card.getAccountBelonging().addToSpendingsReport(node);
         return null;
     }
 
-    public void sendMoneyToCommerciant(Double amount, ExchangeRatesGraph exchangeRates, Commerciant comm, String description, int timestamp) {
+    /**
+     * Sends money to a commerciant, applying commissions and cashback.
+     *
+     * @param amount        the amount to send
+     * @param exchangeRates the exchange rates for currency conversion
+     * @param comm          the {@link Commerciant} receiving the money
+     * @param description   the transaction description
+     * @param timestamp     the transaction timestamp
+     */
+    public void sendMoneyToCommerciant(final double amount, final ExchangeRatesGraph exchangeRates,
+                                       final Commerciant comm, final String description,
+                                       final int timestamp) {
         double ronAmount = amount * exchangeRates.getRate(currency, Utils.DEFAULT_CURRENCY);
         double commission = getOwner().getCommission(ronAmount);
         double newAmount = amount * commission;
@@ -421,32 +466,40 @@ public abstract class Account {
             return;
         }
 
-        // verific daca am vreun cashback de dat pt tranzactii, care poate fi primit de orice comerciant
         double cashback = cashbackService.giveCashbackForTransactions(comm.getName(), amount);
 
-        // adaug tranzactia, indiferent ce tip e
         cashbackService.addTransactionToCommerciant(comm.getName(), ronAmount);
 
-        //verific cashbackul pt amount, care poate fi primit si pt tranzactia curenta
-        double newCashback = cashbackService.giveCashbackForAmount(comm.getName(), ronAmount - cashback, getOwner().getPlan());
+        double newCashback = cashbackService.giveCashbackForAmount(comm.getName(),
+                ronAmount - cashback, getOwner().getPlan());
         newCashback = newCashback * exchangeRates.getRate(Utils.DEFAULT_CURRENCY, currency);
         cashback += newCashback;
 
         balance -= (newAmount - cashback);
         ObjectNode node = addTransaction(iban, comm.getAccount(), amount, description, timestamp);
-        // ???
+
         if (owner != null) {
             owner.getCommandHistory().addToHistory(node);
         }
         addToReport(node);
     }
 
-    public ObjectNode checkForGold(final double amount, ExchangeRatesGraph exchangeRates, final int timestamp) {
+    /**
+     * Checks if the account qualifies for an upgrade to the Gold plan.
+     *
+     * @param amount        the transaction amount to evaluate
+     * @param exchangeRates the exchange rates for currency conversion
+     * @param timestamp     the transaction timestamp
+     * @return an {@link ObjectNode} with plan upgrade details if conditions are met,
+     *         or {@code null} if no upgrade is performed
+     */
+    public ObjectNode checkForGold(final double amount, final ExchangeRatesGraph exchangeRates,
+                                   final int timestamp) {
         double ronAmount = amount * exchangeRates.getRate(currency, Utils.DEFAULT_CURRENCY);
-        if (ronAmount > 300) {
+        if (ronAmount > Utils.THRESHOLD_300) {
             if (getOwner().getPlan() == ServicePlan.SILVER) {
                 getOwner().setNumPayments(getOwner().getNumPayments() + 1);
-                if (getOwner().getNumPayments() >= 5) {
+                if (getOwner().getNumPayments() >= Utils.NUM_PAYMENTS_FOR_GOLD) {
                     getOwner().setPlan(ServicePlan.GOLD);
                     ObjectNode node = JsonNodeFactory.instance.objectNode();
                     node.put("timestamp", timestamp);
@@ -460,29 +513,86 @@ public abstract class Account {
         return null;
     }
 
-    public void addUser(String email, String owner, User user) {
+    /**
+     * Adds a user to the account.
+     *
+     * @param email the email of the user to add
+     * @param boss the owner of the account
+     * @param user  the {@link User} object representing the new user
+     */
+    public void addUser(final String email, final String boss, final User user) {
     }
 
-    public void addNewBusinessAssociate(String email, String role, int timestamp, Application application) {
+    /**
+     * Adds a new business associate to the account.
+     *
+     * @param email       the email of the associate to add
+     * @param role        the role assigned to the associate
+     * @param timestamp   the timestamp of the action
+     * @param application the {@link Application} instance to interact with
+     */
+    public void addNewBusinessAssociate(final String email, final String role, final int timestamp,
+                                        final Application application) {
     }
 
-    public ObjectNode changeSpendingLimit(double amount, String email, int timestamp) {
+    /**
+     * Changes the spending limit for the account.
+     *
+     * @param amount    the new spending limit
+     * @param email     the email of the account owner
+     * @param timestamp the timestamp of the action
+     * @return {@code null} if successful, or an {@link ObjectNode} with error details if failed
+     */
+    public ObjectNode changeSpendingLimit(final double amount, final String email,
+                                          final int timestamp) {
         return null;
     }
 
-    public ObjectNode changeDepositLimit(double amount, String email, int timestamp) {
+    /**
+     * Changes the deposit limit for the account.
+     *
+     * @param amount    the new deposit limit
+     * @param email     the email of the account owner
+     * @param timestamp the timestamp of the action
+     * @return {@code null} if successful, or an {@link ObjectNode} with error details if failed
+     */
+    public ObjectNode changeDepositLimit(final double amount, final String email,
+                                         final int timestamp) {
         return null;
     }
 
-    public ObjectNode getBusinessReport(int startTimestamp, int endTimestamp, String type) {
+    /**
+     * Retrieves a business report for the account within a specified time range.
+     *
+     * @param startTimestamp the start timestamp of the range
+     * @param endTimestamp   the end timestamp of the range
+     * @param type           the type of report to generate
+     * @return an {@link ObjectNode} containing the business report data
+     * @throws UnsupportedOperationException if the account is not a business account
+     */
+    public ObjectNode getBusinessReport(final int startTimestamp, final int endTimestamp,
+                                        final String type) {
         throw new UnsupportedOperationException("Account is not of type business");
     }
 
-    public void addFunds(double amount, String email, final int timestamp) {
+    /**
+     * Adds funds to the account.
+     *
+     * @param amount    the amount to add
+     * @param email     the email of the account owner
+     * @param timestamp the timestamp of the transaction
+     */
+    public void addFunds(final double amount, final String email, final int timestamp) {
         balance += amount;
     }
 
-    public void deleteOneTimeCard(String cardNumber, int timestamp) {
+    /**
+     * Deletes a one-time card from the account.
+     *
+     * @param cardNumber the card number of the card to delete
+     * @param timestamp  the timestamp of the deletion
+     */
+    public void deleteOneTimeCard(final String cardNumber, final int timestamp) {
         Card card = getCardByNumber(cardNumber);
         if (card == null) {
             return;

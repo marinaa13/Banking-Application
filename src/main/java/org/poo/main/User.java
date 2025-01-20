@@ -1,4 +1,4 @@
-package org.poo.main.userTypes;
+package org.poo.main;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -7,8 +7,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.poo.commands.CommandHistory;
 import org.poo.fileio.UserInput;
-import org.poo.main.Application;
-import org.poo.main.ServicePlan;
 import org.poo.main.accounts.Account;
 import org.poo.main.accounts.BusinessAccount;
 import org.poo.main.cardTypes.Card;
@@ -19,7 +17,10 @@ import org.poo.main.splitPayment.SplitPaymentStatus;
 import org.poo.utils.Errors;
 import org.poo.utils.Utils;
 
-import java.util.*;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 
 /**
  * Represents a user with personal information, associated accounts, and a command history.
@@ -80,8 +81,9 @@ public class User implements Observer {
 
         ArrayNode array = JsonNodeFactory.instance.arrayNode();
         for (Account account : accounts) {
-            if (account.getOwner().equals(this))
+            if (account.getOwner().equals(this)) {
                 array.add(account.getJson());
+            }
         }
 
         node.set("accounts", array);
@@ -108,25 +110,18 @@ public class User implements Observer {
         node.put("timestamp", timestamp);
         node.put("description", "New account created");
 
-        // Add account report if it's not the first account ????????????????????????????????????????????????????????????
-        if (accounts.size() >= 1) {
+        if (!accounts.isEmpty()) {
             account.addToReport(node);
         }
         commandHistory.addToHistory(node);
     }
 
+    /**
+     * Adds a new business account to the user's list of accounts.
+     * @param account the business account to add
+     */
     public void addBussinessAccount(final BusinessAccount account) {
         accounts.add(account);
-        ObjectNode node = JsonNodeFactory.instance.objectNode();
-        //NU STIU UNDE ADAUG ASTA
-//        node.put("timestamp", timestamp);
-//        node.put("description", "New account created");
-//
-//        // Add account report if it's not the first account
-//        if (accounts.size() > 1) {
-//            account.addToReport(node);
-//        }
-//        commandHistory.addToHistory(node);
     }
 
     /**
@@ -145,11 +140,9 @@ public class User implements Observer {
                 } else {
                     if (a.isBusinessAccount()) {
                         if (email.equals(a.getOwner().getEmail())) {
-                            // daca e owner, poate sa stearga contul - trebuie sters de la toata lumea
                             app.removeAccount(a);
                             return 1;
                         } else {
-                            //probabi; cv eroare
                             return 0;
                         }
                     }
@@ -159,7 +152,6 @@ public class User implements Observer {
             }
         }
 
-        // Log the error if the account cannot be deleted
         ObjectNode node = Errors.fundsRemaining(timestamp);
         getCommandHistory().addToHistory(node);
         return 0;
@@ -190,20 +182,36 @@ public class User implements Observer {
         }
     }
 
+    /**
+     * Checks if the user is a student based on their occupation.
+     * @return true if the user is a student, false otherwise
+     */
     public boolean isStudent() {
         return occupation.equals("student");
     }
 
+    /**
+     * Computes the user's age based on their birthdate.
+     * @return the user's age
+     */
     public int getAge() {
-        return 2024 - Integer.parseInt(birthDate.substring(0, 4));
+        return Utils.CURR_YEAR - Integer.parseInt(birthDate.substring(0, 4));
     }
 
-    public void withdrawSavings(Account acc, double amount, String currency, int timestamp) {
+    /**
+     * Deposits a specified amount from a savings account to a classic account.
+     * @param acc the account to deposit from
+     * @param amount the amount to deposit
+     * @param currency the currency of the amount
+     * @param timestamp the timestamp when the deposit occurred
+     */
+    public void withdrawSavings(final Account acc, final double amount, final String currency,
+                                final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
         if (getFirstClassicAccount(currency) == null) {
             node.put("description", "You do not have a classic account.");
-        } else if (getAge() < 21) {
+        } else if (getAge() < Utils.MIN_AGE) {
             node.put("description", "You don't have the minimum age required.");
         } else if (!acc.isSavingsAccount()) {
             node.put("description", "Account is not of type savings.");
@@ -213,11 +221,17 @@ public class User implements Observer {
         }
         getCommandHistory().addToHistory(node);
         acc.addToReport(node);
-        if (node.has("amount"))
+        if (node.has("amount")) {
             getCommandHistory().addToHistory(node);
+        }
     }
 
-    public Account getFirstClassicAccount(String currency) {
+    /**
+     * Retrieves the first classic account of the user based on the currency.
+     * @param currency the currency of the account
+     * @return the first classic account of the user with the specified currency
+     */
+    public Account getFirstClassicAccount(final String currency) {
         for (Account acc : accounts) {
             if (acc.isClassicAccount() && acc.getCurrency().equals(currency)) {
                 return acc;
@@ -226,10 +240,19 @@ public class User implements Observer {
         return null;
     }
 
-    //amountul e in currency
-    public ObjectNode makeSavingsWithdrawal(Account from, Account to, double amount, String currency, int timestamp) {
+    /**
+     * Makes a savings withdrawal from a savings account to a classic account.
+     * @param from the account to withdraw from
+     * @param to the account to deposit to
+     * @param amount the amount to withdraw
+     * @param currency the currency of the amount
+     * @param timestamp the timestamp when the withdrawal occurred
+     * @return a JSON object representing the withdrawal operation
+     */
+    public ObjectNode makeSavingsWithdrawal(final Account from, final Account to,
+                                            final double amount, final String currency,
+                                            final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
-
         double newAmount = amount * app.getExchangeRates().getRate(currency, from.getCurrency());
 
         if (from.getBalance() >= newAmount) {
@@ -247,7 +270,15 @@ public class User implements Observer {
         return node;
     }
 
-    public void upgradePlan(Account acc, ServicePlan newPlanType, double rate, int timestamp) {
+    /**
+     * Upgrades the user's plan to a new plan type.
+     * @param acc the account that makes the payment
+     * @param newPlanType the new plan type
+     * @param rate the exchange rate
+     * @param timestamp the timestamp when the upgrade occurred
+     */
+    public void upgradePlan(final Account acc, final ServicePlan newPlanType, final double rate,
+                            final int timestamp) {
         ObjectNode node;
         if (newPlanType == plan) {
             node = Errors.alreadyOwnedPlan(timestamp, newPlanType.toString().toLowerCase());
@@ -260,16 +291,27 @@ public class User implements Observer {
         acc.addToReport(node);
     }
 
-    private ObjectNode changePlan(ServicePlan newPlanType, Account acc, double rate, int timestamp) {
+    /**
+     * Changes the user's plan to a new plan type.
+     * @param newPlanType the new plan type
+     * @param acc the account that makes the payment
+     * @param rate the exchange rate
+     * @param timestamp the timestamp when the change occurred
+     * @return a JSON object representing the plan change operation
+     */
+    private ObjectNode changePlan(final ServicePlan newPlanType, final Account acc,
+                                  final double rate, final int timestamp) {
         double amount = 0;
-        if ((plan == ServicePlan.STUDENT || plan == ServicePlan.STANDARD) && newPlanType == ServicePlan.SILVER) {
-            amount = 100 * rate;
-        } else if ((plan == ServicePlan.STUDENT || plan == ServicePlan.STANDARD) && newPlanType == ServicePlan.GOLD) {
-            amount = 350 * rate;
+        if ((plan == ServicePlan.STUDENT || plan == ServicePlan.STANDARD)
+                && newPlanType == ServicePlan.SILVER) {
+            amount = Utils.PLAN_FEE_100 * rate;
+        } else if ((plan == ServicePlan.STUDENT || plan == ServicePlan.STANDARD)
+                && newPlanType == ServicePlan.GOLD) {
+            amount = Utils.PLAN_FEE_350 * rate;
         } else if (plan == ServicePlan.SILVER && newPlanType == ServicePlan.GOLD) {
-            amount = 250 * rate;
+            amount = Utils.PLAN_FEE_250 * rate;
         }
-        amount = Math.round(amount * 1000000.0) / 1000000.0;
+        amount = Math.round(amount * Utils.ROUNDING_HELPER) / Utils.ROUNDING_HELPER;
         try {
             acc.deductFee(amount);
             ObjectNode node = JsonNodeFactory.instance.objectNode();
@@ -284,22 +326,30 @@ public class User implements Observer {
         }
     }
 
-    public double getCommission(double amount) {
-        switch(plan) {
+    /**
+     * Computes the commission for a transaction based on the user's plan.
+     * @param amount the amount of the transaction
+     * @return the commission for the transaction
+     */
+    public double getCommission(final double amount) {
+        switch (plan) {
             case STANDARD:
-                return 1.002;
+                return Utils.STANDARD_COMM;
             case SILVER:
-                if (amount > 500) {
-                    return 1.001;
+                if (amount > Utils.THRESHOLD_500) {
+                    return Utils.SILVER_COMM;
                 }
             default:
                 return 1;
         }
     }
 
+    /**
+     * Processes a split payment across multiple accounts.
+     * @param splitPayment the payment to process
+     */
     @Override
-    public void update(SplitPayment splitPayment) {
-        // finding the split payment in the queue to remove it
+    public void update(final SplitPayment splitPayment) {
         SplitPaymentInfo currentOp = null;
         for (SplitPaymentInfo splitPaymentInfo : splitPaymentQueue) {
             if (splitPaymentInfo.getSplitPayment() == splitPayment) {
@@ -314,8 +364,9 @@ public class User implements Observer {
 
             ObjectNode node = JsonNodeFactory.instance.objectNode();
             node.put("timestamp", splitPayment.getTimestamp());
-            String formatted = String.format("%.2f", splitPayment.getAmount());
-            node.put("description", "Split payment of " + formatted + " " + splitPayment.getCurrency());
+            String formatted = String.format("%.2f", splitPayment.getTotalAmount());
+            node.put("description", "Split payment of " + formatted + " "
+                    + splitPayment.getCurrency());
             node.put("splitPaymentType", splitPayment.getSplitPaymentType());
             node.put("currency", splitPayment.getCurrency());
             node.set("amountForUsers", splitPayment.getAmountsArray());
@@ -327,15 +378,16 @@ public class User implements Observer {
         }
 
         if (splitPayment.getAccountToBlame().isEmpty()) {
-            double amount = splitPayment.getAmountForUser().get(splitPayment.getAccounts().indexOf(acc.getIban()));
-            double newAmount = amount * app.getExchangeRates().getRate(splitPayment.getCurrency(), acc.getCurrency());
-//            double ronAmount = amount * app.getExchangeRates().getRate(splitPayment.getCurrency(), Utils.DEFAULT_CURRENCY);
-//            newAmount *= getCommission(ronAmount);
+            double amount = splitPayment.getAmountForUser().get(splitPayment.getAccounts()
+                    .indexOf(acc.getIban()));
+            double newAmount = amount * app.getExchangeRates().getRate(splitPayment.getCurrency(),
+                    acc.getCurrency());
             acc.setBalance(acc.getBalance() - newAmount);
             ArrayNode accountsArray = splitPayment.getAccountsArray();
             ArrayNode amountsArray = splitPayment.getAmountsArray();
             ObjectNode node = acc.addSplitTransaction(accountsArray, splitPayment.getCurrency(),
-                    splitPayment.getAmount(), splitPayment.getTimestamp(), amountsArray, splitPayment.getSplitPaymentType());
+                    splitPayment.getTotalAmount(), splitPayment.getTimestamp(), amountsArray,
+                    splitPayment.getSplitPaymentType());
             getCommandHistory().addToHistory(node);
         } else {
             ObjectNode node = JsonNodeFactory.instance.objectNode();
@@ -345,10 +397,12 @@ public class User implements Observer {
                 node.put("amount", splitPayment.getAmountForUser().getFirst());
             }
             node.put("currency", splitPayment.getCurrency());
-            String formatted = String.format("%.2f", splitPayment.getAmount());
-            node.put("description", "Split payment of " + formatted + " " + splitPayment.getCurrency());
+            String formatted = String.format("%.2f", splitPayment.getTotalAmount());
+            node.put("description", "Split payment of " + formatted + " "
+                    + splitPayment.getCurrency());
             node.put("error",
-                    "Account " + splitPayment.getAccountToBlame() + " has insufficient funds for a split payment.");
+                    "Account " + splitPayment.getAccountToBlame()
+                            + " has insufficient funds for a split payment.");
             node.set("involvedAccounts", splitPayment.getAccountsArray());
             node.put("splitPaymentType", splitPayment.getSplitPaymentType());
             node.put("timestamp", splitPayment.getTimestamp());
@@ -357,16 +411,18 @@ public class User implements Observer {
         }
     }
 
-    //trebuie gasit primul la care inca nu a acceptat/refuzat
-
-    public void handleSplitPayment(final int timestamp, SplitPaymentStatus status, final String type) {
+    /**
+     * Updates the status of a split payment based on the payment status and type.
+     * @param status the new status of the payment
+     * @param type the type of the payment
+     */
+    public void handleSplitPayment(final SplitPaymentStatus status, final String type) {
         for (SplitPaymentInfo splitPaymentInfo : splitPaymentQueue) {
             if (splitPaymentInfo == null) {
                 break;
             }
-            // cand gasesc primul care e pending, il refuz si tre sa il sterg de la toata lumea
-            if (splitPaymentInfo.getStatus() == SplitPaymentStatus.PENDING &&
-                    splitPaymentInfo.getSplitPayment().getSplitPaymentType().equals(type)) {
+            if (splitPaymentInfo.getStatus() == SplitPaymentStatus.PENDING
+                    && splitPaymentInfo.getSplitPayment().getSplitPaymentType().equals(type)) {
                 SplitPayment splitPayment = splitPaymentInfo.getSplitPayment();
                 splitPayment.updatePaymentStatus(splitPaymentInfo.getAccount(), status);
                 splitPaymentInfo.setStatus(status);
@@ -374,6 +430,4 @@ public class User implements Observer {
             }
         }
     }
-
-
 }

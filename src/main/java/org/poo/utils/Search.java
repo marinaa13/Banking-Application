@@ -3,7 +3,7 @@ package org.poo.utils;
 import org.poo.main.Commerciant;
 import org.poo.main.accounts.Account;
 import org.poo.main.cardTypes.Card;
-import org.poo.main.userTypes.User;
+import org.poo.main.User;
 import java.util.List;
 
 /**
@@ -52,7 +52,15 @@ public final class Search {
         return null;
     }
 
-    public static Commerciant getCommerciantByIban(final List<Commerciant> commerciants, final String iban) {
+    /**
+     * Retrieves a {@link Commerciant} by its IBAN from a list of commerciants.
+     * @param commerciants the list of commerciants to search through
+     * @param iban the IBAN of the commerciant to find
+     * @return the {@link Commerciant} with the specified IBAN,
+     * or {@code null} if no commerciant is found
+     */
+    public static Commerciant getCommerciantByIban(final List<Commerciant> commerciants,
+                                                   final String iban) {
         for (Commerciant commerciant : commerciants) {
             if (commerciant.getAccount().equals(iban)) {
                 return commerciant;
@@ -61,7 +69,15 @@ public final class Search {
         return null;
     }
 
-    public static Commerciant getCommerciantByName(final List<Commerciant> commerciants, final String name) {
+    /**
+     * Retrieves a {@link Commerciant} by its name from a list of commerciants.
+     * @param commerciants the list of commerciants to search through
+     * @param name the name of the commerciant to find
+     * @return the {@link Commerciant} with the specified name,
+     * or {@code null} if no commerciant is found
+     */
+    public static Commerciant getCommerciantByName(final List<Commerciant> commerciants,
+                                                   final String name) {
         for (Commerciant commerciant : commerciants) {
             if (commerciant.getName().equals(name)) {
                 return commerciant;

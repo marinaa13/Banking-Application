@@ -3,16 +3,17 @@ package org.poo.commands;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.accounts.Account;
-import org.poo.main.Application;
-import org.poo.main.accounts.BusinessAccount;
-import org.poo.main.accounts.ClassicAccount;
+import org.poo.main.accounts.AccountFactory;
 import org.poo.main.accounts.SavingsAccount;
+import org.poo.main.accounts.BusinessAccount;
+
+import org.poo.main.Application;
 
 /**
  * Represents a command to add a new account for a specific user.
  * <p>
- * This command allows the creation of either a regular {@link Account} or a
- * {@link SavingsAccount} depending on the account type provided in the input.
+ * This command allows the creation of either a regular {@link Account}, a {@link SavingsAccount}
+ * or a {@link BusinessAccount} depending on the account type provided in the input.
  * The account is then added to the user's profile in the application.
  */
 public class AddAccount implements Command {
@@ -36,13 +37,8 @@ public class AddAccount implements Command {
         this.email = input.getEmail();
         this.timestamp = input.getTimestamp();
 
-        if (input.getAccountType().equals("savings")) {
-            this.account = new SavingsAccount(input);
-        } else if (input.getAccountType().equals("classic")) {
-            this.account = new ClassicAccount(input);
-        } else {
-            this.account = new BusinessAccount(input, app);
-        }
+        AccountFactory factory = AccountFactory.getInstance();
+        account = factory.getAccount(input.getAccountType(), input, app);
     }
 
     /**

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Utility class that provides methods for generating JSON objects representing
- * different types of error messages related to different operations.
+ * various error messages related to different operations.
  * <p>
  * This class cannot be instantiated as its constructor is private.
  */
@@ -108,6 +108,12 @@ public final class Errors {
         return node;
     }
 
+    /**
+     * Creates a JSON object representing an "Invalid account for split" error with a timestamp.
+     *
+     * @param timestamp the timestamp when the error occurred
+     * @return a JSON object containing the timestamp and the error description
+     */
     public static ObjectNode invalidAccountForSplit(final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
@@ -115,6 +121,12 @@ public final class Errors {
         return node;
     }
 
+    /**
+     * Creates a JSON object representing a "Commerciant not found" error with a timestamp.
+     *
+     * @param timestamp the timestamp when the error occurred
+     * @return a JSON object containing the timestamp and the error description
+     */
     public static ObjectNode commerciantNotFound(final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
@@ -122,6 +134,12 @@ public final class Errors {
         return node;
     }
 
+    /**
+     * Creates a JSON object representing a "Change spending limit" error with a timestamp.
+     *
+     * @param timestamp the timestamp when the error occurred
+     * @return a JSON object containing the timestamp and the error description
+     */
     public static ObjectNode changeSpendLimitError(final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
@@ -129,6 +147,12 @@ public final class Errors {
         return node;
     }
 
+    /**
+     * Creates a JSON object representing a "Change deposit limit" error with a timestamp.
+     *
+     * @param timestamp the timestamp when the error occurred
+     * @return a JSON object containing the timestamp and the error description
+     */
     public static ObjectNode changeDepLimitError(final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
@@ -136,21 +160,40 @@ public final class Errors {
         return node;
     }
 
+    /**
+     * Creates a JSON object representing a "Downgrade plan" error with a timestamp.
+     *
+     * @param timestamp the timestamp when the error occurred
+     * @return a JSON object containing the timestamp and the error description
+     */
     public static ObjectNode downgradePlan(final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
-        node.put("description", "You cannot downgrade yor plan.");
+        node.put("description", "You cannot downgrade your plan.");
         return node;
     }
 
-    public static ObjectNode alreadyOwnedPlan(final int timestamp, String plan) {
+    /**
+     * Creates a JSON object representing an "Already owned plan" error with a timestamp.
+     *
+     * @param timestamp the timestamp when the error occurred
+     * @param plan      the plan that is already owned
+     * @return a JSON object containing the timestamp and the error description
+     */
+    public static ObjectNode alreadyOwnedPlan(final int timestamp, final String plan) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
         node.put("description", "The user already has the " + plan + " plan.");
         return node;
     }
 
-    public static ObjectNode notBusinessAccount(int timestamp) {
+    /**
+     * Creates a JSON object representing a "Not a business account" error with a timestamp.
+     *
+     * @param timestamp the timestamp when the error occurred
+     * @return a JSON object containing the timestamp and the error description
+     */
+    public static ObjectNode notBusinessAccount(final int timestamp) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("timestamp", timestamp);
         node.put("description", "This is not a business account");

@@ -21,6 +21,11 @@ public class OneTimeCard extends Card {
         super(input);
     }
 
+    /**
+     * Constructs a new {@link OneTimeCard} for the specified account.
+     *
+     * @param account the account associated with the card
+     */
     public OneTimeCard(final String account) {
         super(account);
     }
@@ -42,8 +47,4 @@ public class OneTimeCard extends Card {
         getAccountBelonging().getOwner().addCard(card, timestamp);
     }
 
-    @Override
-    public boolean isOneTimeCard() {
-        return true;
-    }
 }

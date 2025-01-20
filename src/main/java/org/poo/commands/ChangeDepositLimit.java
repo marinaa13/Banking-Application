@@ -5,26 +5,43 @@ import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
 import org.poo.utils.Output;
 
+/**
+ * Represents a command to change the deposit limit for a specific account and user.
+ */
 public class ChangeDepositLimit implements Command {
+
     private final String email;
     private final String account;
     private final double amount;
     private final int timestamp;
     private final Application app;
 
-    public ChangeDepositLimit(Application app, CommandInput input) {
+    /**
+     * Constructs a new {@code ChangeDepositLimit} command.
+     *
+     * @param app   the application instance to interact with
+     * @param input the command input containing the email, account, amount, and timestamp
+     */
+    public ChangeDepositLimit(final Application app, final CommandInput input) {
         this.app = app;
-        this.email = input.getEmail();
-        this.account = input.getAccount();
-        this.amount = input.getAmount();
-        this.timestamp = input.getTimestamp();
+        email = input.getEmail();
+        account = input.getAccount();
+        amount = input.getAmount();
+        timestamp = input.getTimestamp();
     }
 
+    /**
+     * Executes the change deposit limit command.
+     *
+     * @return an {@link ObjectNode} containing the result of the operation,
+     *         or {@code null} if the operation was unsuccessful
+     */
     @Override
     public ObjectNode execute() {
         ObjectNode inner = app.changeDepositLimit(email, account, amount, timestamp);
-        if (inner != null)
+        if (inner != null) {
             return Output.getCommand("changeDepositLimit", inner, timestamp);
+        }
         return null;
     }
 }

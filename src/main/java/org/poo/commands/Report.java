@@ -1,12 +1,10 @@
 package org.poo.commands;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Getter;
 import lombok.Setter;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
-import org.poo.utils.Errors;
 import org.poo.utils.Output;
 
 /**
@@ -41,7 +39,8 @@ public class Report implements Command {
 
     /**
      * Executes the report command by calling the
-     * {@link Application#getReport(String, int, int, int)} method to retrieve the transaction report
+     * {@link Application#getReport(String, int, int, int)} method
+     * to retrieve the transaction report
      * for the specified account within the given time range.
      * <p>
      * If the account is found, the report is returned; otherwise, an error message is returned.

@@ -76,16 +76,43 @@ public class SavingsAccount extends Account {
         throw new UnsupportedOperationException("Savings accounts do not have a spendings report");
     }
 
+    /**
+     * Changes the deposit limit for the account.
+     * This operation is not supported for this account type.
+     *
+     * @param amount    the new deposit limit
+     * @param email     the email of the user requesting the change
+     * @param timestamp the timestamp of the request
+     * @return nothing, as this operation is not supported
+     * @throws UnsupportedOperationException always
+     */
     @Override
-    public ObjectNode changeDepositLimit(double amount, String email, int timestamp) {
+    public ObjectNode changeDepositLimit(final double amount, final String email,
+                                         final int timestamp) {
         throw new UnsupportedOperationException("This is not a business account");
     }
 
+    /**
+     * Changes the spending limit for the account.
+     * This operation is not supported for this account type.
+     *
+     * @param amount    the new spending limit
+     * @param email     the email of the user requesting the change
+     * @param timestamp the timestamp of the request
+     * @return nothing, as this operation is not supported
+     * @throws UnsupportedOperationException always
+     */
     @Override
-    public ObjectNode changeSpendingLimit(double amount, String email, int timestamp) {
+    public ObjectNode changeSpendingLimit(final double amount, final String email,
+                                          final int timestamp) {
         throw new UnsupportedOperationException("This is not a business account");
     }
 
+    /**
+     * Checks if this account is a savings account.
+     *
+     * @return {@code true} since this account is a savings account
+     */
     @Override
     public boolean isSavingsAccount() {
         return true;

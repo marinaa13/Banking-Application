@@ -34,7 +34,8 @@ public class AddFunds implements Command {
     }
 
     /**
-     * Executes the add funds command by calling the {@link Application#addFunds(String, double, String, int)}
+     * Executes the add funds command by calling the
+     * {@link Application#addFunds(String, double, String, int)}
      * method to add the specified amount to the account.
      * <p>
      * The command does not return any specific output,

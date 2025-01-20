@@ -5,7 +5,12 @@ import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
 import org.poo.utils.Output;
 
+/**
+ * Represents a command to generate a business report for a specific account
+ * within a given time range.
+ */
 public class BusinessReport implements Command {
+
     private final String type;
     private final int startTimestamp;
     private final int endTimestamp;
@@ -13,18 +18,30 @@ public class BusinessReport implements Command {
     private final int timestamp;
     private final Application app;
 
-    public BusinessReport(Application app, CommandInput input) {
+    /**
+     * Constructs a new {@code BusinessReport} command.
+     *
+     * @param app   the application instance to interact with
+     * @param input the command input containing report type, timestamps, and account details
+     */
+    public BusinessReport(final Application app, final CommandInput input) {
         this.app = app;
-        this.type = input.getType();
-        this.startTimestamp = input.getStartTimestamp();
-        this.endTimestamp = input.getEndTimestamp();
-        this.account = input.getAccount();
-        this.timestamp = input.getTimestamp();
+        type = input.getType();
+        startTimestamp = input.getStartTimestamp();
+        endTimestamp = input.getEndTimestamp();
+        account = input.getAccount();
+        timestamp = input.getTimestamp();
     }
 
+    /**
+     * Executes the business report command.
+     *
+     * @return an {@link ObjectNode} containing the generated business report details
+     */
     @Override
     public ObjectNode execute() {
-        ObjectNode inner = app.businessReport(type, startTimestamp, endTimestamp, account, timestamp);
+        ObjectNode inner = app.businessReport(type, startTimestamp, endTimestamp,
+                                                account, timestamp);
         return Output.getCommand("businessReport", inner, timestamp);
     }
 }

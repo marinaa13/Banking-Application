@@ -1,6 +1,5 @@
 package org.poo.commands;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
@@ -42,7 +41,7 @@ public class PayOnline implements Command {
 
     /**
      * Executes the online payment command by calling the
-     * {@link Application#payOnline(String, double, String, int, String)}
+     * {@link Application#payOnline(String, double, String, int, String, String)}
      * method to process the payment for the specified card and amount.
      * <p>
      * If the payment is successful, the result is returned in JSON format,
@@ -55,9 +54,11 @@ public class PayOnline implements Command {
      */
     @Override
     public ObjectNode execute() {
-        if (amount == 0)
+        if (amount == 0) {
             return null;
-        ObjectNode inner = app.payOnline(cardNumber, amount, currency, timestamp, commerciant, email);
+        }
+        ObjectNode inner = app.payOnline(cardNumber, amount, currency, timestamp,
+                                         commerciant, email);
         if (inner != null) {
             return Output.getCommand("payOnline", inner, timestamp);
         }

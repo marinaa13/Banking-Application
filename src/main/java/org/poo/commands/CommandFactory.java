@@ -1,17 +1,29 @@
 package org.poo.commands;
 
+import lombok.Getter;
 import org.poo.fileio.CommandInput;
 import org.poo.main.Application;
 
 /**
  * Factory class responsible for creating commands based on the provided {@link CommandInput}.
  * <p>
- * This class is used to generate the appropriate command object based on the input received.
- * Each command is created based on its type, and the corresponding class for the command is
- * instantiated. The factory ensures that the appropriate command is created and initialized
- * with the necessary data.
+ * This class implements the Singleton Design Pattern to ensure only one instance of the factory
+ * is created and used throughout the application. The factory is used to generate the appropriate
+ * command object based on the input received. Each command is created based on its type, and the
+ * corresponding class for the command is instantiated. The Singleton pattern ensures centralized
+ * control over command creation.
  */
-public class CommandFactory {
+public final class CommandFactory {
+    @Getter
+    private static final CommandFactory INSTANCE = new CommandFactory();
+
+    private CommandFactory() {
+        // private constructor to prevent instantiation
+    }
+
+    public static CommandFactory getInstance() {
+        return INSTANCE;
+    }
 
     /**
      * Creates a command based on the given {@link CommandInput} and {@link Application} instance.
@@ -53,7 +65,7 @@ public class CommandFactory {
             case "changeSpendingLimit" -> new ChangeSpendingLimit(app, input);
             case "changeDepositLimit" -> new ChangeDepositLimit(app, input);
             case "businessReport" -> new BusinessReport(app, input);
-            default -> new Default();
+            default -> null;
         };
     }
 }

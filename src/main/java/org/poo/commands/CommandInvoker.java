@@ -20,7 +20,7 @@ public class CommandInvoker {
      * The factory is used to create commands based on the provided input.
      */
     public CommandInvoker() {
-        this.commandFactory = new CommandFactory();
+        this.commandFactory = CommandFactory.getInstance();
     }
 
     /**
